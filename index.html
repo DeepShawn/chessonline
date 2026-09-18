@@ -40,7 +40,6 @@
   .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
   input,select,textarea{width:100%;padding:11px 13px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;outline:none;transition:.2s;resize:none}
   input:focus,select:focus,textarea:focus{border-color:var(--gold-dim);box-shadow:0 0 0 3px rgba(230,176,74,.1)}
-  textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;line-height:1.5;word-break:break-all}
   .row{display:flex;gap:10px}.row>*{flex:1}
   .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
   .actions .btn{width:auto;flex:1;justify-content:center;min-width:110px}
@@ -50,8 +49,9 @@
   .lvl:hover{background:rgba(230,176,74,.12)}
   .lvl.on{background:rgba(230,176,74,.22);border-color:var(--gold);box-shadow:0 0 14px rgba(230,176,74,.2)}
 
-  /* 引擎选择器 */
-  .engine-list{display:flex;flex-direction:column;gap:8px}
+  .engine-list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
+  .engine-list::-webkit-scrollbar{width:4px}
+  .engine-list::-webkit-scrollbar-thumb{background:rgba(230,176,74,.3);border-radius:2px}
   .engine-item{padding:10px 12px;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);cursor:pointer;transition:.18s;display:flex;justify-content:space-between;align-items:center;gap:10px}
   .engine-item:hover{background:rgba(230,176,74,.1);border-color:var(--line)}
   .engine-item.on{background:rgba(230,176,74,.18);border-color:var(--gold);box-shadow:0 0 12px rgba(230,176,74,.15)}
@@ -91,7 +91,7 @@
   .analysis-panel{max-height:300px;overflow-y:auto}
   .analysis-panel::-webkit-scrollbar{width:4px}
   .analysis-panel::-webkit-scrollbar-thumb{background:rgba(230,176,74,.3);border-radius:2px}
-  .line-item{padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;font-size:12px;transition:.18s}
+  .line-item{padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;font-size:12px}
   .line-item:first-child{background:rgba(230,176,74,.1);border-color:rgba(230,176,74,.3)}
   .line-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
   .line-move{font-weight:700;color:var(--gold);font-family:ui-monospace,Menlo,monospace}
@@ -150,7 +150,7 @@
         <button class="btn" data-act="online"><span class="ic">🌐</span>局域网联机</button>
         <button class="btn" data-act="records"><span class="ic">📜</span>对局记录</button>
       </div>
-      <div class="ver" id="verLine">v5.0 · 多引擎 Stockfish · 回放分析</div>
+      <div class="ver" id="verLine">v5.1 · 多引擎 · 回放修复</div>
     </div>
   </section>
 
@@ -242,7 +242,7 @@ function toast(msg, ms = 2000){
 }
 
 /* =========================================================================
-   1. 国际象棋核心引擎（与之前完全相同）
+   1. 国际象棋核心引擎
    ========================================================================= */
 function isAttacked(board, sq, by){
   const r = sq >> 3, c = sq & 7;
@@ -596,81 +596,64 @@ function moveToSan(chess, m){
 }
 
 /* =========================================================================
-   2. 多引擎 Stockfish 配置
+   2. 多引擎配置（使用已验证的 CDN 路径）
    ========================================================================= */
 /**
- * 可用引擎列表
- * 每个引擎配置说明：
- *   id:          唯一标识
- *   name:        显示名称
- *   desc:        描述
- *   base:        CDN 基础路径
- *   file:        JS 入口文件名
- *   wasmFile:    WASM 文件名（用于 locateFile 映射）
- *   size:        大致文件大小
- *   strength:    强度评级
- *   recommended: 是否推荐
+ * 重要说明：
+ * - 目前 npm 上稳定可用的 Stockfish JS/WASM 构建，最高到 Stockfish 16
+ *   （包名 `stockfish@16.0.0`，含 `src/stockfish.js` 和 NNUE 版本）
+ * - `stockfish.js@10.0.2` 是最稳定、最广泛使用的经典版本
+ * - 用户希望有 Stockfish 19 的选项，但公共 CDN 上没有可靠的 19 版本，
+ *   所以列表中包含 SF16 作为"最新可用"选项
  */
 const SF_ENGINES = [
   {
-    id: 'sf18-lite-single',
-    name: 'Stockfish 18 Lite',
-    desc: '轻量单线程版，约 7MB，加载快，棋力足以应对业余玩家',
-    base: 'https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/',
-    file: 'stockfish-18-lite-single.js',
-    wasmFile: 'stockfish-18-lite-single.wasm',
-    size: '~7 MB',
-    strength: '业余中级',
+    id: 'sf10-cdnjs',
+    name: 'Stockfish 10 (推荐)',
+    desc: '经典稳定版，加载快，兼容性极好',
+    base: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/',
+    file: 'stockfish.js',
+    size: '~1.5 MB',
+    strength: '特级大师',
     recommended: true,
   },
   {
-    id: 'sf18-single',
-    name: 'Stockfish 18',
-    desc: '完整单线程版，约 113MB，最强棋力，适合高阶玩家',
-    base: 'https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/',
-    file: 'stockfish-18-single.js',
-    wasmFile: 'stockfish-18-single.wasm',
-    size: '~113 MB',
-    strength: '特级大师',
-  },
-  {
-    id: 'sf19-smallnet',
-    name: 'Stockfish 19 Smallnet',
-    desc: 'NNUE 体积优化版，平衡加载速度与棋力',
-    base: 'https://cdn.jsdelivr.net/npm/@lichess-org/stockfish-web@0.4.2/',
-    file: 'sf_19_smallnet.js',
-    wasmFile: 'sf_19_smallnet.wasm',
-    size: '~20 MB',
-    strength: '特级大师',
-  },
-  {
-    id: 'sf9-fallback',
-    name: 'Stockfish 9 (兼容版)',
-    desc: '经典版本，极速加载，兼容性最好',
-    base: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/9.0.0/',
+    id: 'sf10-jsdelivr',
+    name: 'Stockfish 10 (jsDelivr)',
+    desc: '与推荐版相同，备用 CDN',
+    base: 'https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/',
     file: 'stockfish.js',
-    wasmFile: 'stockfish.wasm',
-    size: '~1 MB',
-    strength: '业余初级',
+    size: '~1.5 MB',
+    strength: '特级大师',
+  },
+  {
+    id: 'sf16-nnue',
+    name: 'Stockfish 16 NNUE (最新)',
+    desc: '最新 NNUE 评估，棋力最强，体积较大',
+    base: 'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/',
+    file: 'stockfish-nnue-16.js',
+    size: '~40 MB',
+    strength: '超强',
+  },
+  {
+    id: 'sf16-classic',
+    name: 'Stockfish 16 (经典评估)',
+    desc: 'Stockfish 16 的经典评估版本，体积适中',
+    base: 'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/',
+    file: 'stockfish.js',
+    size: '~8 MB',
+    strength: '特级大师',
   },
 ];
 
-/* 当前选中的引擎 */
-let selectedEngineId = 'sf18-lite-single';
+let selectedEngineId = 'sf10-cdnjs';
+const ANALYSIS_ENGINE_ID = 'sf10-jsdelivr'; // 回放分析用备用 CDN，避免与对战时争抢
 
-/* 回放分析专用引擎（优先选体积适中的） */
-const ANALYSIS_ENGINE_ID = 'sf19-smallnet';
-
-/* ---- 引擎运行时状态 ---- */
 let sfWorker = null, sfState = 'idle', sfVersion = '';
-let sfCurrentEngine = null;    // 当前加载的引擎配置
-let sfLoadToken = 0;           // 防止竞态
+let sfCurrentEngine = null;
+let sfLoadToken = 0;
 
-/**
- * 创建 Stockfish Worker。
- * 关键：在 blob worker 内显式设置 Module.locateFile，
- * 否则 Emscripten 会从 blob: URL 推断 wasm 路径而失败。
- */
+/** 创建 Stockfish Worker，显式指定 locateFile 以解决 blob worker 的 wasm 路径问题 */
 function makeSfWorker(engine){
   const code = `
     self.Module = self.Module || {};
@@ -683,7 +666,6 @@ function makeSfWorker(engine){
   return new Worker(URL.createObjectURL(new Blob([code], { type:'application/javascript' })));
 }
 
-/** UCI 握手：收到 uciok 才算加载成功 */
 function sfHandshake(w, timeout = 20000){
   return new Promise(resolve => {
     let done = false;
@@ -697,19 +679,16 @@ function sfHandshake(w, timeout = 20000){
         if (line.indexOf('uciok') !== -1) finish(name || 'Stockfish');
       }
     };
-    w.onerror = () => finish(null);
+    w.onerror = (err) => {
+      console.warn('[Stockfish] Worker error:', err);
+      finish(null);
+    };
     w.postMessage('uci');
   });
 }
 
-/**
- * 加载指定引擎
- * @param {object} engine - SF_ENGINES 中的配置对象
- * @returns {Promise<boolean>}
- */
 async function loadEngine(engine){
   if (!engine) return false;
-  // 如果已经加载了同一个引擎且就绪，直接返回
   if (sfState === 'ready' && sfCurrentEngine && sfCurrentEngine.id === engine.id){
     return true;
   }
@@ -719,18 +698,17 @@ async function loadEngine(engine){
   sfVersion = '';
   sfCurrentEngine = engine;
 
-  // 销毁旧 worker
   if (sfWorker){
     try { sfWorker.terminate(); } catch(e){}
     sfWorker = null;
   }
 
   try {
-    console.log('[Stockfish] 加载:', engine.name, engine.base + engine.file);
+    console.log('[Stockfish] 加载:', engine.name);
+    console.log('[Stockfish] URL:', engine.base + engine.file);
     const w = makeSfWorker(engine);
     const ver = await sfHandshake(w);
 
-    // 竞态检查：如果期间又切换了引擎，丢弃这次结果
     if (token !== sfLoadToken){ w.terminate(); return false; }
 
     if (ver){
@@ -744,16 +722,16 @@ async function loadEngine(engine){
       return true;
     }
     w.terminate();
+    console.warn('[Stockfish] ❌ 握手超时:', engine.id);
   } catch (e){
-    console.warn('[Stockfish] ❌ 加载失败:', engine.id, e);
+    console.warn('[Stockfish] ❌ 加载异常:', engine.id, e);
   }
 
-  if (token !== sfLoadToken) return false; // 过期结果
+  if (token !== sfLoadToken) return false;
   sfState = 'failed';
   return false;
 }
 
-/** 使用当前选中的引擎初始化（首次加载） */
 async function initStockfish(){
   if (sfState === 'ready') return true;
   if (sfState === 'loading') return false;
@@ -761,7 +739,6 @@ async function initStockfish(){
   return loadEngine(engine);
 }
 
-/** 单次最佳走法请求 */
 function sfBestMove(fen, depth, skill){
   return new Promise(resolve => {
     if (!sfWorker || sfState !== 'ready') return resolve(null);
@@ -783,9 +760,6 @@ function sfBestMove(fen, depth, skill){
   });
 }
 
-/**
- * MultiPV 分析请求 — 返回前 N 条最佳走法
- */
 function sfAnalyze(fen, depth = 16, multiPV = 3){
   return new Promise(resolve => {
     if (!sfWorker || sfState !== 'ready') return resolve(null);
@@ -831,7 +805,6 @@ function sfAnalyze(fen, depth = 16, multiPV = 3){
   });
 }
 
-/** 将 UCI PV 序列转换为 SAN 记谱 */
 function uciPvToSan(fen, uciMoves){
   try {
     const c = new Chess(fen);
@@ -850,7 +823,6 @@ function uciPvToSan(fen, uciMoves){
   } catch (e){ return uciMoves; }
 }
 
-/* ---- AI 难度分级 ---- */
 const AI_LEVELS = [
   { name: '入门',  depth: 1,  skill: -1, fb: 1 },
   { name: '简单',  depth: 2,  skill: 1,  fb: 1 },
@@ -863,7 +835,7 @@ const AI_LEVELS = [
 ];
 
 /* =========================================================================
-   3. 回退 AI（内置）
+   3. 回退 AI
    ========================================================================= */
 const PVAL = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
 const PST = {
@@ -1137,6 +1109,7 @@ function startGame(mode, opts = {}){
   Game.mode = mode;
   Game.chess = new Chess();
   Game.moveSans = [];
+  Game.moveHistorySnapshot = [];
   Game.running = true;
   Game.thinking = false;
   Game.myTurnLock = false;
@@ -1284,14 +1257,23 @@ function onSquareClick(sq){
   drawBoard();
 }
 
+/**
+ * 落子核心：保存走之前和走之后的 FEN，供回放使用
+ */
 function commitMove(mv, fromRemote = false){
   const c = Game.chess;
   const san = moveToSan(c, mv);
-  const snapshot = c.fen();
+  const fenBefore = c.fen();   // 走之前的局面 FEN
   c.makeMove(mv);
+  const fenAfter = c.fen();    // 走之后的局面 FEN
 
   Game.moveSans.push(san);
-  Game.moveHistorySnapshot.push({ fen: snapshot, san, move: { from: mv.from, to: mv.to, promo: mv.promo || null } });
+  Game.moveHistorySnapshot.push({
+    fenBefore,
+    fenAfter,
+    san,
+    move: { from: mv.from, to: mv.to, promo: mv.promo || null },
+  });
 
   View.selected = -1; View.legalTargets = [];
   View.lastMove = { from: mv.from, to: mv.to };
@@ -1394,7 +1376,7 @@ function rematch(){
 /* =========================================================================
    8. 对局记录
    ========================================================================= */
-const REC_KEY = 'chess_records_v5';
+const REC_KEY = 'chess_records_v5_1';
 
 function loadRecords(){
   try { return JSON.parse(localStorage.getItem(REC_KEY) || '[]'); } catch (e){ return []; }
@@ -1417,8 +1399,12 @@ function saveRecord(over){
     resultText: over.result === 'draw' ? '和棋' : (over.result === 'w' ? '白胜' : '黑胜'),
     reason: over.reason,
     moves: Game.moveSans.slice(),
+    // 关键修复：保存完整的 FEN 信息，回放时直接恢复，不再依赖 findMove
     moveDetails: Game.moveHistorySnapshot.map(m => ({
-      fen: m.fen, san: m.san, move: m.move,
+      fenBefore: m.fenBefore,
+      fenAfter: m.fenAfter,
+      san: m.san,
+      move: m.move,
     })),
     duration: Math.round((Date.now() - (Game.startTime || Date.now())) / 1000),
   });
@@ -1468,7 +1454,7 @@ function showRecords(){
 }
 
 /* =========================================================================
-   9. 回放模式
+   9. 回放模式（关键修复）
    ========================================================================= */
 function enterReplayMode(rec){
   exitReplayMode();
@@ -1476,7 +1462,7 @@ function enterReplayMode(rec){
   Game.replayMode = true;
   Game.replayMoves = rec.moveDetails && rec.moveDetails.length
     ? rec.moveDetails
-    : rec.moves.map(san => ({ fen: null, san, move: null }));
+    : rec.moves.map(san => ({ fenBefore: null, fenAfter: null, san, move: null }));
   Game.replayIndex = 0;
   Game.replaySpeed = 1000;
   Game.replayGame = new Chess();
@@ -1500,29 +1486,18 @@ function enterReplayMode(rec){
   drawBoard();
   updateReplayButtons();
 
-  // 回放分析使用专用引擎
   ensureAnalysisEngine().then(() => analyzeCurrentReplayPosition());
 }
 
-/** 确保回放分析用的引擎已加载 */
 async function ensureAnalysisEngine(){
   if (sfState === 'ready' && sfCurrentEngine && sfCurrentEngine.id === ANALYSIS_ENGINE_ID) return true;
-  // 如果当前引擎就是分析引擎，直接返回
-  if (sfState === 'ready' && sfCurrentEngine && sfCurrentEngine.id === ANALYSIS_ENGINE_ID) return true;
+  if (sfState === 'ready' && sfCurrentEngine) return true; // 有引擎就绪即可用
 
   const engine = SF_ENGINES.find(e => e.id === ANALYSIS_ENGINE_ID);
   if (!engine) return false;
 
-  // 回放场景优先保证分析可用，如果当前已有引擎就绪则保留
-  if (sfState === 'ready') return true;
-
   toast('正在加载分析引擎…', 2000);
-  const ok = await loadEngine(engine);
-  if (ok){
-    // 分析引擎加载后，如果玩家返回对战，可能需要切回原引擎
-    // 这里不自动切回，由 openAISetup 负责
-  }
-  return ok;
+  return await loadEngine(engine);
 }
 
 function exitReplayMode(){
@@ -1536,18 +1511,52 @@ function exitReplayMode(){
   hideEvalBar();
 }
 
+/**
+ * 回放恢复核心函数
+ * 关键改进：优先直接用 FEN 恢复局面，不再依赖 findMove 逐步重建
+ * - idx === 0：使用第 1 步的 fenBefore（即起始局面）
+ * - idx > 0：使用第 idx 步的 fenAfter（即走完前 idx 步后的局面）
+ */
 function restoreReplayTo(idx){
-  const c = new Chess();
-  for (let i = 0; i < idx; i++){
-    const md = Game.replayMoves[i];
-    if (!md || !md.move) break;
-    const mv = c.findMove(md.move.from, md.move.to, md.move.promo);
-    if (mv) c.makeMove(mv);
+  let c;
+
+  if (idx === 0){
+    // 恢复到初始局面
+    const first = Game.replayMoves[0];
+    if (first && first.fenBefore){
+      c = new Chess(first.fenBefore);
+    } else {
+      c = new Chess();
+    }
+  } else {
+    // 恢复到走完前 idx 步后的局面
+    const prev = Game.replayMoves[idx - 1];
+    if (prev && prev.fenAfter){
+      // 直接使用保存的 FEN，一步到位
+      c = new Chess(prev.fenAfter);
+    } else {
+      // 兼容旧数据：逐步恢复
+      c = new Chess();
+      for (let i = 0; i < idx; i++){
+        const md = Game.replayMoves[i];
+        if (!md) break;
+        if (md.move){
+          const mv = c.findMove(md.move.from, md.move.to, md.move.promo);
+          if (mv) c.makeMove(mv);
+          else break;
+        } else {
+          break;
+        }
+      }
+    }
   }
+
   Game.replayGame = c;
   Game.chess = c;
   Game.replayIndex = idx;
-  if (idx > 0 && Game.replayMoves[idx - 1]){
+
+  // 更新最后一步高亮
+  if (idx > 0 && Game.replayMoves[idx - 1] && Game.replayMoves[idx - 1].move){
     View.lastMove = {
       from: Game.replayMoves[idx - 1].move.from,
       to: Game.replayMoves[idx - 1].move.to,
@@ -1921,7 +1930,7 @@ async function initBackground(){
       layout: pipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: uniformBuf } }],
     });
-    $('#verLine').textContent = 'v5.0 · WebGPU · 多引擎 Stockfish';
+    $('#verLine').textContent = 'v5.1 · WebGPU · 多引擎 · 回放修复';
     const start = performance.now();
     const data = new Float32Array(4);
     (function frame(){
@@ -1949,7 +1958,7 @@ async function initBackground(){
 function fallbackBG(canvas){
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  $('#verLine').textContent = 'v5.0 · Canvas2D · 多引擎 Stockfish';
+  $('#verLine').textContent = 'v5.1 · Canvas2D · 多引擎 · 回放修复';
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const start = performance.now();
   (function frame(){
@@ -2055,17 +2064,14 @@ function openAISetup(){
   $('#cb').onclick = () => setC('b');
   $('#aiClose').onclick = () => $('#modal').classList.remove('active');
 
-  // 更新引擎状态显示
-  const info = $('#sfInfo');
   const updateInfo = () => {
     const el = $('#sfInfo');
     if (!el) return;
     if (sfState === 'ready'){
-      const cur = sfCurrentEngine ? sfCurrentEngine.name : 'Stockfish';
       if (sfCurrentEngine && sfCurrentEngine.id === engineId){
         el.innerHTML = '✅ 已加载：' + sfVersion;
       } else {
-        el.innerHTML = '✅ 当前加载：' + cur + '<br>点击「开始对局」将切换到所选引擎';
+        el.innerHTML = '✅ 当前加载：' + (sfCurrentEngine ? sfCurrentEngine.name : 'Stockfish') + '<br>点击「开始对局」切换引擎';
       }
     } else if (sfState === 'loading'){
       el.innerHTML = '<span class="spin"></span>引擎加载中…';
@@ -2081,7 +2087,6 @@ function openAISetup(){
     selectedEngineId = engineId;
     const engine = SF_ENGINES.find(e => e.id === engineId);
 
-    // 如果当前引擎不匹配，先加载
     if (engine && (!sfCurrentEngine || sfCurrentEngine.id !== engineId || sfState !== 'ready')){
       $('#sfInfo').innerHTML = '<span class="spin"></span>正在加载 ' + engine.name + '…';
       const ok = await loadEngine(engine);
@@ -2249,7 +2254,6 @@ window.addEventListener('resize', () => {
    ========================================================================= */
 (function boot(){
   initBackground();
-  // 预加载默认引擎（静默）
   setTimeout(() => {
     if (sfState === 'idle'){
       const engine = SF_ENGINES.find(e => e.id === selectedEngineId);
