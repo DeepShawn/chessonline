@@ -2,8 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Aurum Chess · Stockfish 19</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aurum Chess · Stockfish 19 · Local Rating</title>
 <style>
 :root{
   --bg:#08090d;--panel:rgba(20,21,27,.82);--panel2:rgba(31,32,40,.88);
@@ -38,15 +38,22 @@ select,input{background:#101116;color:var(--text);border:1px solid #3a3b43;borde
 .btn{border:1px solid rgba(229,189,99,.32);background:#15161c;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
 .btn:hover{border-color:var(--gold)}.btn.primary{background:linear-gradient(135deg,#7e5b1c,#c2943e);color:#fff;border:0}
 .btn.danger{border-color:rgba(227,93,106,.5);color:#ffbdc4}.btn:disabled{opacity:.45;cursor:not-allowed}
-.game-grid{display:grid;grid-template-columns:minmax(330px,760px) 340px;gap:22px;justify-content:center;align-items:start}
-.board-wrap{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:stretch}
-.evalbar{border-radius:8px;overflow:hidden;background:#181818;position:relative;border:1px solid #444}
-.eval-white{position:absolute;bottom:0;left:0;right:0;height:50%;background:#eee;transition:.25s}
-.eval-label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:10px;
-font-weight:800;color:#f2c96f;text-shadow:0 1px 2px #000;white-space:nowrap}
-.board-shell{position:relative;width:100%;aspect-ratio:1;border-radius:8px;overflow:hidden;box-shadow:0 22px 60px rgba(0,0,0,.45)}
-#board{display:block;width:100%;height:100%;touch-action:none;background:#111}
-.side{display:grid;gap:14px}.panel{padding:14px}.status{font-weight:750;font-size:16px}.sub{color:var(--muted);font-size:12px;margin-top:5px}
+.game-grid{display:grid;grid-template-columns:minmax(0,760px) minmax(300px,340px);gap:22px;justify-content:center;align-items:start;max-width:1140px;margin:0 auto}
+.board-wrap{display:block;width:100%;min-width:0}
+.board-wrap.replay-eval{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:stretch}
+.evalbar{display:none;border-radius:9px;overflow:hidden;background:#16171b;position:relative;border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 0 16px rgba(0,0,0,.42)}
+.board-wrap.replay-eval .evalbar{display:block}
+.eval-white{position:absolute;bottom:0;left:0;right:0;height:50%;background:#eee;transition:height .18s ease-out}
+.eval-label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:10px;font-weight:800;color:#f2c96f;text-shadow:0 1px 2px #000;white-space:nowrap}
+.board-shell{position:relative;width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;contain:layout paint;background:#111;border:1px solid rgba(229,189,99,.22);box-shadow:0 22px 64px rgba(0,0,0,.48),0 0 0 5px rgba(229,189,99,.035)}
+.board-shell:after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 28px rgba(0,0,0,.16)}
+#board{display:block;width:100%;height:100%;touch-action:manipulation;background:#111}
+.side{display:grid;gap:14px;min-width:0;overflow-anchor:none}
+#game .panel{padding:15px;border-radius:15px;background:linear-gradient(145deg,rgba(25,26,32,.91),rgba(12,13,17,.94));box-shadow:0 14px 38px rgba(0,0,0,.22)}
+.status{font-weight:760;font-size:16px;letter-spacing:.01em}.sub{color:var(--muted);font-size:12px;margin-top:5px;line-height:1.45}
+#analysisPanel{min-height:178px;overflow-anchor:none}
+.analysis{min-height:136px;align-content:start;overflow-anchor:none}
+.moves{overflow-anchor:none}
 .engine-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}
 .engine-dot.ok{background:var(--ok);box-shadow:0 0 9px var(--ok)}.engine-dot.bad{background:var(--danger)}
 .moves{height:300px;overflow:auto;display:grid;grid-template-columns:44px 1fr 1fr;align-content:start;font-size:13px}
@@ -69,7 +76,8 @@ border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer}.record:hover{backg
 
 /* v5: Android content:// + replay viewport stability */
 html,body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
-body{touch-action:pan-y}
+body{touch-action:pan-y;overflow-anchor:none}
+#game{overflow-anchor:none}
 .screen,.wrap,.game-grid,.board-wrap,.board-shell,.side,.panel{min-width:0;max-width:100%}
 .game-grid{width:100%}
 .board-wrap{width:100%;overflow:hidden}
@@ -84,8 +92,26 @@ body{touch-action:pan-y}
 @media(max-width:860px){
   #game.screen{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
   .game-grid{display:block}
-  .board-wrap{width:100%;max-width:100vw;margin:0 auto 14px}
+  .board-wrap{width:100%;max-width:100%;margin:0 auto 16px}
+  .board-wrap.replay-eval{grid-template-columns:18px minmax(0,1fr);gap:7px}
   .side{display:grid;width:100%;max-width:100%;overflow:hidden}
+}
+
+
+/* ===== Aurum Local Rating ===== */
+.local-rating-card{display:flex;align-items:center;gap:12px;padding:12px 13px;margin-bottom:12px;border:1px solid rgba(229,189,99,.18);background:linear-gradient(135deg,rgba(229,189,99,.065),rgba(8,9,13,.58));border-radius:14px;min-width:0}
+.local-rating-icon{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border-radius:13px;background:linear-gradient(145deg,#6d501e,#d0a852);color:#12100b;font:900 20px Georgia,serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
+.local-rating-main{min-width:0;flex:1}.local-rating-main span{display:block;color:#77746e;font-size:10px;text-transform:uppercase;letter-spacing:.1em}.local-rating-main b{display:block;margin-top:3px;color:#f0d99a;font-size:22px;line-height:1}.local-rating-main small{display:block;color:#8e8980;font-size:10px;margin-top:5px}
+.local-rating-stats{display:flex;gap:12px;text-align:right}.local-rating-stats div{min-width:48px}.local-rating-stats span{display:block;color:#69665f;font-size:9px;text-transform:uppercase}.local-rating-stats b{display:block;color:#d8d2c7;font-size:12px;margin-top:3px}
+.rating-toggle{display:flex;align-items:center;gap:9px;margin-top:10px;padding:10px;border:1px solid rgba(229,189,99,.14);border-radius:11px;background:rgba(229,189,99,.035);font-size:11px;color:#b9b3a7}
+.rating-toggle input{width:17px;height:17px;accent-color:#c89d48}.rating-toggle small{display:block;color:#706d67;margin-top:2px}
+.rating-change{margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(229,189,99,.16);background:rgba(229,189,99,.05);font-size:12px;line-height:1.5}
+.rating-change strong{color:#e8c66e}
+@media(max-width:600px){
+  input,select,textarea{font-size:16px}
+  .local-rating-card{align-items:flex-start}
+  .local-rating-stats{gap:8px}
+  .local-rating-stats div{min-width:42px}
 }
 
 </style>
@@ -107,6 +133,19 @@ body{touch-action:pan-y}
       </div>
       <div class="menu-pane">
         <div class="menu-head"><div><h2>开始对局</h2><p>选择一种模式继续</p></div><span class="version-pill">ENGINE 19.0.0</span></div>
+        <div class="local-rating-card">
+          <div class="local-rating-icon">♞</div>
+          <div class="local-rating-main">
+            <span>本地 AI 等级分</span>
+            <b id="localRating">1200</b>
+            <small>仅保存在本机浏览器，不上传任何数据库</small>
+          </div>
+          <div class="local-rating-stats">
+            <div><span>最高</span><b id="localPeak">1200</b></div>
+            <div><span>对局</span><b id="localGames">0</b></div>
+            <div><span>战绩</span><b id="localRecord">0-0-0</b></div>
+          </div>
+        </div>
         <div class="cards">
           <button class="card" data-mode="local"><span class="mode-icon">♟</span><b>本地双人</b><span>同一设备轮流操作，完整规则与标准记谱。</span></button>
           <button class="card" data-mode="ai"><span class="mode-icon">♞</span><b>挑战 AI</b><span>Stockfish 19，8 档强度，加载失败自动回退。</span></button>
@@ -125,8 +164,12 @@ body{touch-action:pan-y}
               <option value="builtin">内置回退 AI</option>
             </select></div>
           </div>
+          <label id="ratedRow" class="rating-toggle" style="display:none">
+            <input id="ratedGame" type="checkbox" checked>
+            <span><b style="color:#dfc37c">计入本地等级分</b><small id="ratedHint">胜/和/负将按 AI 难度对应 Elo 自动计算，本机保存。</small></span>
+          </label>
           <div id="engineTestRow" class="engine-test" style="display:none"><span id="testDot" class="engine-dot"></span><span id="testText">可先测试 Stockfish 19 是否能在当前浏览器启动</span><button class="btn" id="engineTestBtn" style="margin-left:auto;padding:6px 9px">引擎自检</button></div>
-          <div id="protocolHint" class="protocol-hint">当前为本地档案环境。V5 会跳过被 Android 拦截的 content:// Worker，直接从 npm CDN 的 <b>/bin</b> 加载 Stockfish 19。</div>
+          <div id="protocolHint" class="protocol-hint">当前为本地档案环境。将跳过 Android 会拦截的 content:// Worker，直接从 npm CDN 的 <b>/bin</b> 加载 Stockfish 19。</div>
           <details id="engineDiag" class="engine-diag" style="display:none"><summary>查看引擎诊断日志</summary><pre id="engineDiagLog">尚未运行自检。</pre></details>
           <div id="lanSetup" class="lanbox" style="display:none">
             <label>3 位房间号（双方输入相同号码）</label>
@@ -135,7 +178,7 @@ body{touch-action:pan-y}
           </div>
           <div class="row" style="margin-top:14px"><button class="btn primary" id="startBtn">开始对局</button><button class="btn" id="cancelSetup">取消</button></div>
         </div>
-        <div class="menu-footer"><span>Rules · SAN · Castling · En passant · Promotion</span><span>v5 · Android content:// loader</span></div>
+        <div class="menu-footer"><span>Rules · SAN · Castling · En passant · Promotion</span><span>v8 · Stable UI + Local Rating</span></div>
       </div>
     </div>
   </div>
@@ -143,7 +186,7 @@ body{touch-action:pan-y}
 
 <section id="game" class="screen">
 <div class="wrap game-grid">
-  <div class="board-wrap">
+  <div class="board-wrap" id="boardWrap">
     <div class="evalbar" id="evalBar"><div class="eval-white" id="evalWhite"></div><div class="eval-label" id="evalLabel">0.0</div></div>
     <div class="board-shell"><canvas id="board"></canvas></div>
   </div>
@@ -169,8 +212,11 @@ body{touch-action:pan-y}
 <div class="row" style="justify-content:space-between;margin-bottom:14px"><h2>对局记录</h2><button class="btn" id="recordsBack">返回</button></div>
 <div class="panel" id="recordsList"></div></div></section>
 
+
+
 <div id="promoModal" class="modal"><div class="modalbox panel"><h3>兵升变</h3><div class="promo" id="promoBtns"></div></div></div>
 <div id="dialog" class="modal"><div class="modalbox panel"><h3 id="dialogTitle">提示</h3><p id="dialogText"></p><div class="row" id="dialogActions"></div></div></div>
+
 <div id="toast" class="toast"></div>
 
 <script type="module">
@@ -179,6 +225,59 @@ import * as PeerNS from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm';
 const Peer = PeerNS.Peer || PeerNS.default;
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+// ===== 本地 AI 等级分 =====
+const LOCAL_RATING_KEY='aurumLocalRatingV1';
+const AI_RATINGS=[800,1000,1200,1400,1600,1800,2000,2200];
+let ratedRequested=true;
+
+function getLocalRatingProfile(){
+  const fallback={rating:1200,peakRating:1200,games:0,wins:0,draws:0,losses:0};
+  try{
+    const raw=JSON.parse(localStorage.getItem(LOCAL_RATING_KEY)||'null');
+    if(!raw||!Number.isFinite(raw.rating))return fallback;
+    return {
+      rating:Math.max(100,Math.min(4000,Math.round(raw.rating))),
+      peakRating:Math.max(100,Math.min(4000,Math.round(raw.peakRating??raw.rating))),
+      games:Math.max(0,Math.round(raw.games||0)),
+      wins:Math.max(0,Math.round(raw.wins||0)),
+      draws:Math.max(0,Math.round(raw.draws||0)),
+      losses:Math.max(0,Math.round(raw.losses||0))
+    };
+  }catch{return fallback}
+}
+function saveLocalRatingProfile(p){
+  localStorage.setItem(LOCAL_RATING_KEY,JSON.stringify(p));
+  renderLocalRating();
+}
+function renderLocalRating(){
+  const p=getLocalRatingProfile();
+  const a=$('#localRating'),b=$('#localPeak'),c=$('#localGames'),d=$('#localRecord');
+  if(a)a.textContent=p.rating;if(b)b.textContent=p.peakRating;if(c)c.textContent=p.games;if(d)d.textContent=`${p.wins}-${p.draws}-${p.losses}`;
+}
+function getHumanOutcome(result,color){
+  if(result==='1/2-1/2')return 'draw';
+  const winner=result==='1-0'?'w':result==='0-1'?'b':null;
+  return winner===color?'win':'loss';
+}
+function applyLocalRating(rec){
+  const p=getLocalRatingProfile();
+  const difficulty=Math.max(0,Math.min(7,Number(rec.difficulty)||0));
+  const aiRating=AI_RATINGS[difficulty];
+  const outcome=getHumanOutcome(rec.result,rec.playerColor);
+  const actual=outcome==='win'?1:outcome==='draw'?.5:0;
+  const expected=1/(1+Math.pow(10,(aiRating-p.rating)/400));
+  const k=p.games<20?40:28;
+  let delta=Math.round(k*(actual-expected));
+  if(outcome==='win'&&delta<1)delta=1;
+  if(outcome==='loss'&&delta>-1)delta=-1;
+  const before=p.rating;
+  const after=Math.max(100,Math.min(4000,before+delta));
+  p.rating=after;p.peakRating=Math.max(p.peakRating,after);p.games++;
+  if(outcome==='win')p.wins++;else if(outcome==='draw')p.draws++;else p.losses++;
+  saveLocalRatingProfile(p);
+  return {before,after,delta,aiRating,outcome,k};
+}
+
 const PIECE={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
 const VALUE={p:100,n:320,b:330,r:500,q:900,k:0};
 const DIFF=[
@@ -193,7 +292,7 @@ let pendingPromotion=null, drawOfferPending=false, activeEngineKind='sf19-lite';
 
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2600)}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function updateMenuMeta(){const e=$('#recordCount');if(e)e.textContent=getRecords().length}
+function updateMenuMeta(){const e=$('#recordCount');if(e)e.textContent=getRecords().length;renderLocalRating()}
 function show(id){$$('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active')}
 function dialog(title,text,actions=[['确定',()=>closeDialog()]]){
   $('#dialogTitle').textContent=title;$('#dialogText').textContent=text;const a=$('#dialogActions');a.innerHTML='';
@@ -207,8 +306,8 @@ $$('.card[data-mode]').forEach(b=>b.onclick=()=>{
   $('#setupTitle').textContent=mode==='ai'?'AI 对局设置':mode==='lan'?'联机房间设置':'本地对局';
   $('#lanSetup').style.display=mode==='lan'?'grid':'none';
   $('#diffField').style.display=mode==='ai'?'grid':'none';$('#engineField').style.display=mode==='ai'?'grid':'none';
-  $('#colorField').style.display=mode==='ai'?'grid':'none';$('#engineTestRow').style.display=mode==='ai'?'flex':'none';
-  $$('.card[data-mode]').forEach(x=>x.style.borderColor=x===b?'rgba(229,189,99,.72)':'');
+  $('#colorField').style.display=mode==='ai'?'grid':'none';$('#engineTestRow').style.display=mode==='ai'?'flex':'none';$('#ratedRow').style.display=mode==='ai'?'flex':'none';
+  if(mode==='ai')updateRatedHint();$$('.card[data-mode]').forEach(x=>x.style.borderColor=x===b?'rgba(229,189,99,.72)':'');
 });
 $('#cancelSetup').onclick=()=>{$('#setup').style.display='none';$$('.card[data-mode]').forEach(x=>x.style.borderColor='')};
 $('#engineChoice').onchange=()=>{stopEngines();$('#testText').textContent='引擎选择已改变，可重新自检';$('#testDot').className='engine-dot'};
@@ -225,43 +324,66 @@ $('#engineTestBtn').onclick=async()=>{
   }finally{b.disabled=false}
 };
 $('#startBtn').onclick=async()=>{
-  if(mode==='ai'){human=$('#playerColor').value; if(human==='r')human=Math.random()<.5?'w':'b';orientation=human;activeEngineKind=$('#engineChoice').value}
+  if(mode==='ai'){
+    human=$('#playerColor').value;if(human==='r')human=Math.random()<.5?'w':'b';orientation=human;activeEngineKind=$('#engineChoice').value;
+    ratedRequested=$('#ratedGame').checked;
+  }
   if(mode==='lan'){room=$('#roomCode').value.trim();if(!/^\d{3}$/.test(room)){toast('请输入 3 位房间号');return}}
   startGame();
   if(mode==='lan') await startPeer(room);
-  if(mode==='ai' && activeEngineKind!=='builtin'){await ensureEngine(false); maybeAITurn()}
+  if(mode==='ai'){
+    if(activeEngineKind!=='builtin')await ensureEngine(false);
+    maybeAITurn();
+  }
 };
 function startGame(){
   chess=new Chess();selected=null;targets=[];lastMove=null;ended=false;replayMode=false;currentRecord=null;gameStart=Date.now();
+  $('#boardWrap').classList.remove('replay-eval');$('#evalWhite').style.height='50%';$('#evalLabel').textContent='0.0';
   $('#analysisPanel').style.display='none';$('#replayControls').style.display='none';$('#undoBtn').style.display='inline-block';
   $('#drawBtn').style.display='inline-block';$('#resignBtn').style.display='inline-block';show('#game');updateAll();settleBoardLayout();
-  if(mode==='ai'&&human==='b') setTimeout(maybeAITurn,250);
 }
-$('#menuBtn').onclick=()=>{stopReplay();stopEngines();closePeer();show('#menu')};
+$('#menuBtn').onclick=()=>{stopReplay();stopEngines();closePeer();updateMenuMeta();show('#menu')};
 $('#recordsBack').onclick=()=>show('#menu');
 $('#recordsBtn').onclick=()=>{renderRecords();show('#records')};
 
+
+function updateRatedHint(){
+  const h=$('#ratedHint');
+  if(!h)return;
+  const p=getLocalRatingProfile(),d=Math.max(0,Math.min(7,+$('#difficulty').value||0));
+  h.textContent=`当前 ${p.rating} 分 · 本档 AI 参考 ${AI_RATINGS[d]} Elo · 前 20 局 K=40，之后 K=28。`;
+}
+$('#difficulty').addEventListener('change',updateRatedHint);
+$('#ratedGame').addEventListener('change',updateRatedHint);
+renderLocalRating();
+updateRatedHint();
+
 const board=$('#board'),ctx=board.getContext('2d');
+let boardResizeRAF=0,lastCanvasCssSize=0;
 function resizeBoard(){
+  if(!$('#game').classList.contains('active'))return;
   const shell=board.parentElement;
   const r=shell.getBoundingClientRect();
-  const vv=window.visualViewport;
-  const viewportW=Math.max(240,Math.floor(vv?.width||document.documentElement.clientWidth||innerWidth));
-  const reserved=matchMedia('(max-width:860px)').matches?54:0;
-  const cssSize=Math.max(220,Math.min(r.width||viewportW,viewportW-reserved));
-  shell.style.width=cssSize+'px';
-  shell.style.height=cssSize+'px';
-  shell.style.maxWidth='100%';
+  const cssSize=Math.max(1,Math.floor(Math.min(r.width,r.height||r.width)));
+  if(cssSize<80)return;
   const dpr=Math.max(1,Math.min(3,devicePixelRatio||1));
-  board.style.width='100%';board.style.height='100%';
-  board.width=Math.round(cssSize*dpr);board.height=Math.round(cssSize*dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);drawBoard()
+  const px=Math.round(cssSize*dpr);
+  const changed=Math.abs(cssSize-lastCanvasCssSize)>=1||board.width!==px||board.height!==px;
+  if(changed){
+    lastCanvasCssSize=cssSize;
+    board.width=px;board.height=px;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  drawBoard()
 }
 function settleBoardLayout(){
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeBoard();window.scrollTo(0,0)}))
+  cancelAnimationFrame(boardResizeRAF);
+  boardResizeRAF=requestAnimationFrame(()=>requestAnimationFrame(resizeBoard));
 }
-addEventListener('resize',settleBoardLayout);
-window.visualViewport?.addEventListener('resize',settleBoardLayout);
+const boardObserver='ResizeObserver' in window?new ResizeObserver(()=>settleBoardLayout()):null;
+boardObserver?.observe(board.parentElement);
+addEventListener('resize',settleBoardLayout,{passive:true});
+addEventListener('orientationchange',()=>setTimeout(settleBoardLayout,120),{passive:true});
 function sqToXY(sq){let f=sq.charCodeAt(0)-97,r=+sq[1]-1;if(orientation==='w')return [f,7-r];return [7-f,r]}
 function xyToSq(x,y){if(orientation==='w')return String.fromCharCode(97+x)+(8-y);return String.fromCharCode(104-x)+(y+1)}
 function drawBoard(){
@@ -308,7 +430,7 @@ function makeMove(spec,remote=false){
   try{m=chess.move(spec)}catch{return false}if(!m)return false;
   lastMove={from:m.from,to:m.to};selected=null;targets=[];
   const item={san:m.san,uci:m.from+m.to+(m.promotion||''),fenBefore,fenAfter:chess.fen()};
-  if(!currentRecord)currentRecord={mode,startFen:new Chess().fen(),moves:[],startedAt:gameStart,playerColor:human};
+  if(!currentRecord)currentRecord={mode,startFen:new Chess().fen(),moves:[],startedAt:gameStart,playerColor:human,difficulty:mode==='ai'?+$('#difficulty').value:null,ratedRequested:mode==='ai'&&ratedRequested,engine:mode==='ai'?(engine?._buildLabel||activeEngineKind):null,usedBuiltin:false};
   currentRecord.moves.push(item);
   if(mode==='lan'&&!remote&&conn?.open)conn.send({t:'move',uci:item.uci,fen:item.fenAfter});
   updateAll();checkEnd();
@@ -327,7 +449,7 @@ function renderMoves(){
   const list=$('#moveList');list.innerHTML='';const h=currentRecord?.moves||[];
   for(let i=0;i<h.length;i+=2){let n=document.createElement('div');n.className='n';n.textContent=(i/2+1)+'.';list.appendChild(n);
     for(let j=0;j<2;j++){let k=i+j;if(k<h.length){let b=document.createElement('button');b.textContent=h[k].san;b.onclick=()=>{if(replayMode)jumpReplay(k+1)};list.appendChild(b)}else list.appendChild(document.createElement('div'))}}
-  list.scrollTop=list.scrollHeight
+  if(!replayMode)list.scrollTop=list.scrollHeight
 }
 function renderCaptured(){
   const init={w:{p:8,n:2,b:2,r:2,q:1},b:{p:8,n:2,b:2,r:2,q:1}},now={w:{p:0,n:0,b:0,r:0,q:0},b:{p:0,n:0,b:0,r:0,q:0}};
@@ -346,21 +468,33 @@ function checkEnd(){
   finish(result,reason,true)
 }
 function finish(result,reason,save=true){
-  if(ended)return;ended=true;if(currentRecord){currentRecord.result=result;currentRecord.reason=reason;currentRecord.duration=Date.now()-gameStart;currentRecord.timestamp=Date.now();
-    if(save){let a=getRecords();a.unshift(currentRecord);localStorage.setItem('aurumChessRecords',JSON.stringify(a.slice(0,200)));updateMenuMeta()}}
-  updateAll();dialog('对局结束',`${result} · ${reason}`,[['确定',closeDialog]])
+  if(ended)return;ended=true;
+  let ratingChange=null;
+  if(currentRecord){
+    currentRecord.result=result;currentRecord.reason=reason;currentRecord.duration=Date.now()-gameStart;currentRecord.timestamp=Date.now();
+    if(save&&mode==='ai'&&currentRecord.ratedRequested){
+      ratingChange=applyLocalRating(currentRecord);
+      currentRecord.localRating=ratingChange;
+    }
+    if(save){let a=getRecords();a.unshift(currentRecord);localStorage.setItem('aurumChessRecords',JSON.stringify(a.slice(0,200)));updateMenuMeta()}
+  }
+  updateAll();
+  if(ratingChange){
+    const word=ratingChange.outcome==='win'?'胜':ratingChange.outcome==='draw'?'和':'负';
+    dialog('对局结束',`${result} · ${reason}\n\n本地等级分：${word} · 对手参考 ${ratingChange.aiRating} Elo\n${ratingChange.before} ${ratingChange.delta>=0?'+':''}${ratingChange.delta} → ${ratingChange.after}`,[['确定',closeDialog]]);
+  }else dialog('对局结束',`${result} · ${reason}`,[['确定',closeDialog]])
 }
 function getRecords(){try{return JSON.parse(localStorage.getItem('aurumChessRecords')||'[]')}catch{return[]}}
 function renderRecords(){
   const a=getRecords(),el=$('#recordsList');el.innerHTML='';
   if(!a.length){el.innerHTML='<div class="empty">暂无对局记录</div>';return}
-  a.forEach((r,i)=>{let d=document.createElement('div');d.className='record';d.innerHTML=`<div><b>${r.result||'—'} · ${r.reason||''}</b><div class="meta">${modeName(r.mode)} · ${r.moves?.length||0} 半回合 · ${fmtTime(r.duration||0)} · ${new Date(r.timestamp).toLocaleString()}</div></div><span class="badge">回放</span>`;d.onclick=()=>openReplay(i);el.appendChild(d)})
+  a.forEach((r,i)=>{let d=document.createElement('div');d.className='record';d.innerHTML=`<div><b>${r.result||'—'} · ${r.reason||''}${r.localRating?` · Elo ${r.localRating.before}${r.localRating.delta>=0?'+':''}${r.localRating.delta}→${r.localRating.after}`:''}</b><div class="meta">${modeName(r.mode)} · ${r.moves?.length||0} 半回合 · ${fmtTime(r.duration||0)} · ${new Date(r.timestamp).toLocaleString()}</div></div><span class="badge">回放</span>`;d.onclick=()=>openReplay(i);el.appendChild(d)})
 }
 function fmtTime(ms){let s=Math.round(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
 function openReplay(i){
   const r=getRecords()[i];if(!r)return;mode='replay';replayMode=true;currentRecord=r;replayIndex=0;orientation='w';ended=false;
-  chess=new Chess(r.startFen||undefined);lastMove=null;show('#game');$('#analysisPanel').style.display='block';$('#replayControls').style.display='flex';
-  $('#undoBtn').style.display='none';$('#drawBtn').style.display='none';$('#resignBtn').style.display='none';settleBoardLayout();updateAll();ensureEngine(true).then(analyzePosition)
+  chess=new Chess(r.startFen||undefined);lastMove=null;show('#game');$('#boardWrap').classList.add('replay-eval');$('#analysisPanel').style.display='block';$('#replayControls').style.display='flex';
+  $('#undoBtn').style.display='none';$('#drawBtn').style.display='none';$('#resignBtn').style.display='none';updateAll();settleBoardLayout();ensureEngine(true).then(analyzePosition)
 }
 function jumpReplay(n){
   stopReplay();n=Math.max(0,Math.min(currentRecord.moves.length,n));replayIndex=n;
@@ -393,8 +527,8 @@ async function maybeAITurn(){
   let uci=null;
   try{
     if(activeEngineKind!=='builtin'&&engineReady)uci=await askBestMove(chess.fen());
-    if(!uci)uci=builtinBestMove();
-  }catch(e){console.warn(e);uci=builtinBestMove();setEngineStatus('Stockfish 19 失败，已切换内置 AI','bad')}
+    if(!uci){uci=builtinBestMove();if(currentRecord)currentRecord.usedBuiltin=true;}
+  }catch(e){console.warn(e);uci=builtinBestMove();if(currentRecord)currentRecord.usedBuiltin=true;setEngineStatus('Stockfish 19 失败，已切换内置 AI','bad')}
   if(uci){makeMove({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||undefined})}
   engineBusy=false;updateAll()
 }
@@ -593,9 +727,19 @@ async function analyzePosition(){
   const lines=new Map();
   const on=e=>{let s=String(e.data||'');for(const line of s.split(/\r?\n/)){if(line.startsWith('info ')&&line.includes(' pv ')){
       let dm=line.match(/\bdepth (\d+)/),mp=line.match(/\bmultipv (\d+)/),cp=line.match(/\bscore (cp|mate) (-?\d+)/),pv=line.match(/\bpv (.+)$/);
-      if(dm&&mp&&cp&&pv){lines.set(+mp[1],{depth:+dm[1],type:cp[1],v:+cp[2],pv:pv[1].split(' ').slice(0,20)});renderAnalysis(lines)}
+      if(dm&&mp&&cp&&pv){lines.set(+mp[1],{depth:+dm[1],type:cp[1],v:+cp[2],pv:pv[1].split(' ').slice(0,20)});scheduleAnalysisRender(lines)}
     }if(line.startsWith('bestmove ')){w.removeEventListener('message',on)}}};
   w.addEventListener('message',on);w.postMessage('go depth 14')
+}
+let analysisRenderTimer=0,pendingAnalysisLines=null,lastAnalysisPaint=0;
+function scheduleAnalysisRender(lines){
+  pendingAnalysisLines=lines;
+  const now=performance.now(),wait=Math.max(0,110-(now-lastAnalysisPaint));
+  if(analysisRenderTimer)return;
+  analysisRenderTimer=setTimeout(()=>{
+    analysisRenderTimer=0;lastAnalysisPaint=performance.now();
+    if(pendingAnalysisLines)renderAnalysis(pendingAnalysisLines)
+  },wait)
 }
 function renderAnalysis(lines){
   const el=$('#analysis');el.innerHTML='';let top=lines.get(1);if(top)setEval(scoreForWhite(top));
