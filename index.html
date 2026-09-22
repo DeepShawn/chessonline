@@ -1,2267 +1,662 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>国际象棋 · Chess</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Aurum Chess · Stockfish 19</title>
 <style>
-  :root{
-    --gold:#e6b04a; --gold-dim:#a8842f;
-    --bg0:#0b0d12; --panel:rgba(24,28,38,.88);
-    --line:rgba(230,176,74,.22); --text:#e9e6df; --muted:#8b93a7;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:var(--bg0);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
-  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block}
-  .app{position:relative;z-index:1;height:100%}
-  .screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:20px;overflow:auto}
-  .screen.active{display:flex;animation:fadeIn .32s ease}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+:root{
+  --bg:#08090d;--panel:rgba(20,21,27,.82);--panel2:rgba(31,32,40,.88);
+  --gold:#e5bd63;--gold2:#8d6a28;--text:#f5f1e8;--muted:#aaa59a;
+  --danger:#e35d6a;--ok:#65c18c;--sq1:#d8c6a5;--sq2:#6e5237;
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select{font:inherit}.bg{position:fixed;inset:0;width:100%;height:100%;z-index:-2}
+.vignette{position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+radial-gradient(circle at 50% 15%,transparent 0,transparent 35%,rgba(0,0,0,.58) 85%)}
+.screen{display:none;min-height:100vh;padding:28px}.screen.active{display:block}
+.wrap{max-width:1180px;margin:auto}
+.card,.panel{border:1px solid rgba(229,189,99,.22);background:linear-gradient(145deg,rgba(30,30,38,.82),rgba(13,14,18,.9));box-shadow:0 16px 50px rgba(0,0,0,.28);backdrop-filter:blur(12px);border-radius:18px}
+.menu-wrap{max-width:1240px;min-height:calc(100vh - 56px);display:grid;place-items:center;margin:auto}
+.menu-shell{width:100%;display:grid;grid-template-columns:minmax(0,.92fr) minmax(480px,1.08fr);overflow:hidden;border:1px solid rgba(229,189,99,.2);border-radius:30px;background:rgba(10,11,15,.76);box-shadow:0 38px 110px rgba(0,0,0,.52),inset 0 1px rgba(255,255,255,.03);backdrop-filter:blur(20px)}
+.hero-pane{position:relative;min-height:690px;padding:58px 52px;overflow:hidden;background:radial-gradient(circle at 20% 15%,rgba(217,168,63,.17),transparent 32%),linear-gradient(145deg,rgba(35,29,18,.72),rgba(12,13,17,.93) 65%)}
+.hero-pane:before{content:"";position:absolute;width:430px;height:430px;border:1px solid rgba(229,189,99,.14);border-radius:50%;left:-220px;bottom:-160px;box-shadow:0 0 0 40px rgba(229,189,99,.025),0 0 0 95px rgba(229,189,99,.018)}
+.hero-pane:after{content:"♞";position:absolute;right:-12px;bottom:-90px;font:520px/1 Georgia,serif;color:rgba(229,189,99,.035);transform:rotate(-8deg);pointer-events:none}
+.menu-kicker{display:flex;align-items:center;gap:10px;color:#d8bd7b;font-size:11px;font-weight:800;letter-spacing:.28em;text-transform:uppercase}.menu-kicker:before{content:"";width:34px;height:1px;background:var(--gold)}
+.hero-title{font:700 clamp(48px,6.5vw,86px)/.88 Georgia,serif;letter-spacing:.025em;margin:38px 0 22px;color:#f4dfaa;text-shadow:0 0 48px rgba(229,189,99,.14)}
+.hero-title small{display:block;font:650 14px/1.2 Inter,system-ui,sans-serif;letter-spacing:.52em;color:#a89b82;margin-top:22px}
+.hero-copy{max-width:460px;color:#b8b3a9;font-size:15px;line-height:1.8;margin:0 0 28px}
+.feature-row{display:flex;gap:9px;flex-wrap:wrap;margin:24px 0}.feature-chip{padding:7px 10px;border:1px solid rgba(229,189,99,.18);border-radius:999px;background:rgba(255,255,255,.025);font-size:11px;color:#c9c1b1}
+.hero-status{position:absolute;left:52px;right:52px;bottom:44px;display:grid;grid-template-columns:1.3fr .7fr;gap:10px}
+.status-card{padding:13px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.07);background:rgba(7,8,11,.58)}.status-card strong{display:block;font-size:12px;color:#e7dcc2}.status-card span{display:block;color:#85837e;font-size:11px;margin-top:5px}.status-line{display:flex;align-items:center;gap:7px}
+.menu-pane{padding:42px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,rgba(20,21,27,.88),rgba(13,14,18,.94))}.menu-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}.menu-head h2{margin:0;font-size:24px}.menu-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.version-pill{border:1px solid rgba(101,193,140,.3);color:#9ad9b3;background:rgba(101,193,140,.07);padding:5px 8px;border-radius:999px;font-size:10px;white-space:nowrap}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px}.card{position:relative;padding:17px 16px 16px;text-align:left;cursor:pointer;color:inherit;transition:.2s;min-height:116px;overflow:hidden}.card:after{content:"→";position:absolute;right:14px;top:14px;color:#605846;transition:.2s}.card:hover{transform:translateY(-2px);border-color:rgba(229,189,99,.58);background:linear-gradient(145deg,rgba(42,38,28,.88),rgba(17,18,23,.95))}.card:hover:after{color:var(--gold);transform:translateX(2px)}.mode-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:rgba(229,189,99,.09);border:1px solid rgba(229,189,99,.14);color:var(--gold);font-size:18px;margin-bottom:10px}.card b{display:block;color:#f2e8d1;font-size:15px;margin-bottom:5px}.card span{display:block;color:#8e8b84;line-height:1.45;font-size:11px;padding-right:12px}
+.setup{max-width:none;margin:14px 0 0;padding:16px;border-radius:15px;animation:setupIn .2s ease-out}@keyframes setupIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}.setup-title{font-weight:750;font-size:13px;margin-bottom:11px;color:#e8d9b8}.engine-test{display:flex;align-items:center;gap:8px;margin-top:10px;padding:9px 10px;border-radius:10px;background:#0d0e12;border:1px solid rgba(255,255,255,.06);color:#8f8d87;font-size:11px}.engine-test .engine-dot{flex:0 0 auto}.engine-diag{margin-top:8px;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#0b0c10;overflow:hidden}.engine-diag summary{cursor:pointer;padding:8px 10px;color:#9a978f;font-size:11px;user-select:none}.engine-diag pre{margin:0;padding:10px;border-top:1px solid rgba(255,255,255,.05);white-space:pre-wrap;word-break:break-word;color:#b9b5aa;font:10px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;max-height:180px;overflow:auto}.protocol-hint{display:none;margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(227,93,106,.22);background:rgba(227,93,106,.06);color:#cfaaa9;font-size:10px;line-height:1.5}.menu-footer{display:flex;justify-content:space-between;gap:10px;color:#62615e;font-size:10px;margin-top:14px;padding:0 3px}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+label{color:var(--muted);font-size:13px}.field{display:grid;gap:6px;flex:1;min-width:160px}
+select,input{background:#101116;color:var(--text);border:1px solid #3a3b43;border-radius:10px;padding:10px 12px}
+.btn{border:1px solid rgba(229,189,99,.32);background:#15161c;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+.btn:hover{border-color:var(--gold)}.btn.primary{background:linear-gradient(135deg,#7e5b1c,#c2943e);color:#fff;border:0}
+.btn.danger{border-color:rgba(227,93,106,.5);color:#ffbdc4}.btn:disabled{opacity:.45;cursor:not-allowed}
+.game-grid{display:grid;grid-template-columns:minmax(330px,760px) 340px;gap:22px;justify-content:center;align-items:start}
+.board-wrap{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:stretch}
+.evalbar{border-radius:8px;overflow:hidden;background:#181818;position:relative;border:1px solid #444}
+.eval-white{position:absolute;bottom:0;left:0;right:0;height:50%;background:#eee;transition:.25s}
+.eval-label{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);font-size:10px;
+font-weight:800;color:#f2c96f;text-shadow:0 1px 2px #000;white-space:nowrap}
+.board-shell{position:relative;width:100%;aspect-ratio:1;border-radius:8px;overflow:hidden;box-shadow:0 22px 60px rgba(0,0,0,.45)}
+#board{display:block;width:100%;height:100%;touch-action:none;background:#111}
+.side{display:grid;gap:14px}.panel{padding:14px}.status{font-weight:750;font-size:16px}.sub{color:var(--muted);font-size:12px;margin-top:5px}
+.engine-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#777;margin-right:6px}
+.engine-dot.ok{background:var(--ok);box-shadow:0 0 9px var(--ok)}.engine-dot.bad{background:var(--danger)}
+.moves{height:300px;overflow:auto;display:grid;grid-template-columns:44px 1fr 1fr;align-content:start;font-size:13px}
+.moves>*{padding:5px 7px;border-bottom:1px solid rgba(255,255,255,.04)}.moves .n{color:#777}
+.moves button{background:none;border:0;color:#ddd;text-align:left;padding:5px 7px;cursor:pointer}.moves button:hover{color:var(--gold)}
+.captured{min-height:34px;font-size:23px;letter-spacing:2px;color:#ddd}.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.analysis{display:grid;gap:8px}.pv{background:#101116;border-radius:9px;padding:9px;font-size:12px;line-height:1.45}.pv b{color:var(--gold)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:30;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}.modalbox{max-width:520px;width:100%;padding:20px}.promo{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.promo button{font-size:44px;padding:14px}.toast{position:fixed;right:18px;bottom:18px;z-index:60;background:#18191f;border:1px solid #4c4c55;
+padding:11px 14px;border-radius:10px;max-width:min(420px,90vw);opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:none}.records{max-width:900px;margin:auto}.record{display:grid;grid-template-columns:1fr auto;gap:10px;padding:14px 16px;
+border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer}.record:hover{background:rgba(255,255,255,.03)}
+.record .meta{color:var(--muted);font-size:12px;margin-top:5px}.empty{text-align:center;color:var(--muted);padding:40px}
+.lanbox{display:grid;gap:10px;margin-top:10px}.code{font-size:30px;letter-spacing:.25em;text-align:center;font-weight:800;color:var(--gold)}
+.badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#222;font-size:11px;color:#bbb}
+@media(max-width:980px){.screen{padding:16px}.menu-shell{grid-template-columns:1fr}.hero-pane{min-height:330px;padding:38px 34px}.hero-title{margin:22px 0 14px}.hero-copy{margin-bottom:12px}.hero-status{position:static;margin-top:22px}.menu-pane{padding:30px 34px}.game-grid{grid-template-columns:1fr}.side{grid-template-columns:1fr 1fr}.moves{height:220px}.span2{grid-column:1/-1}}
+@media(max-width:600px){.screen{padding:10px}.menu-shell{border-radius:20px}.hero-pane{min-height:280px;padding:28px 22px}.hero-title{font-size:48px}.hero-title small{letter-spacing:.34em}.hero-copy{font-size:13px}.hero-status{grid-template-columns:1fr}.menu-pane{padding:24px 18px}.cards{grid-template-columns:1fr 1fr}.card{min-height:110px;padding:14px}.menu-footer{display:none}.side{grid-template-columns:1fr}.span2{grid-column:auto}.board-wrap{grid-template-columns:18px 1fr}.toolbar .btn{flex:1}}
+@media(max-width:420px){.cards{grid-template-columns:1fr}.card{min-height:94px}.mode-icon{margin-bottom:7px}}
 
-  .menu-card{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:38px 30px 26px;backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center}
-  .logo{font-size:58px;line-height:1;color:var(--gold);text-shadow:0 0 30px rgba(230,176,74,.55);margin-bottom:8px;animation:float 3.5s ease-in-out infinite}
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-  .menu-card h1{font-size:31px;letter-spacing:8px;font-weight:600;background:linear-gradient(180deg,#fff5dd,#e6b04a 70%,#9c7620);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px}
-  .sub{color:var(--muted);font-size:12.5px;letter-spacing:1.6px;margin-bottom:30px}
-  .menu-btns{display:flex;flex-direction:column;gap:11px}
-  .btn{display:flex;align-items:center;gap:12px;width:100%;padding:14px 18px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:13px;color:var(--text);font-size:15px;font-family:inherit;cursor:pointer;transition:.22s;text-align:left}
-  .btn:hover{background:rgba(230,176,74,.13);border-color:var(--line);transform:translateY(-1px)}
-  .btn:active{transform:translateY(0) scale(.99)}
-  .btn .ic{font-size:19px;width:26px;text-align:center}
-  .btn.primary{background:linear-gradient(135deg,rgba(230,176,74,.28),rgba(230,176,74,.10));border-color:rgba(230,176,74,.5)}
-  .btn.primary:hover{background:linear-gradient(135deg,rgba(230,176,74,.42),rgba(230,176,74,.18))}
-  .ver{margin-top:22px;font-size:11px;color:#555d70;letter-spacing:.6px}
+/* v5: Android content:// + replay viewport stability */
+html,body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+body{touch-action:pan-y}
+.screen,.wrap,.game-grid,.board-wrap,.board-shell,.side,.panel{min-width:0;max-width:100%}
+.game-grid{width:100%}
+.board-wrap{width:100%;overflow:hidden}
+.board-shell{max-width:100%;margin:0 auto}
+#board{max-width:100%;touch-action:manipulation}
+.side>*{min-width:0}
+.moves,.analysis,.pv{min-width:0;max-width:100%}
+.pv{overflow-wrap:anywhere;word-break:break-word}
+.record{min-width:0;max-width:100%;overflow:hidden;touch-action:manipulation}
+.record>div{min-width:0}
+.record .meta{overflow-wrap:anywhere}
+@media(max-width:860px){
+  #game.screen{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .game-grid{display:block}
+  .board-wrap{width:100%;max-width:100vw;margin:0 auto 14px}
+  .side{display:grid;width:100%;max-width:100%;overflow:hidden}
+}
 
-  .panel{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:26px;backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.6)}
-  .panel h2{font-size:18px;font-weight:600;letter-spacing:2px;color:var(--gold);margin-bottom:4px}
-  .hint{font-size:12px;color:var(--muted);line-height:1.7;margin:8px 0 18px}
-  .field{margin-bottom:14px}
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-  input,select,textarea{width:100%;padding:11px 13px;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);font-family:inherit;font-size:13.5px;outline:none;transition:.2s;resize:none}
-  input:focus,select:focus,textarea:focus{border-color:var(--gold-dim);box-shadow:0 0 0 3px rgba(230,176,74,.1)}
-  .row{display:flex;gap:10px}.row>*{flex:1}
-  .actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
-  .actions .btn{width:auto;flex:1;justify-content:center;min-width:110px}
-  .levels{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .lvl{padding:10px 4px;text-align:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;cursor:pointer;transition:.18s;font-size:12px}
-  .lvl b{display:block;font-size:16px;color:var(--gold);margin-bottom:2px}
-  .lvl:hover{background:rgba(230,176,74,.12)}
-  .lvl.on{background:rgba(230,176,74,.22);border-color:var(--gold);box-shadow:0 0 14px rgba(230,176,74,.2)}
-
-  .engine-list{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto}
-  .engine-list::-webkit-scrollbar{width:4px}
-  .engine-list::-webkit-scrollbar-thumb{background:rgba(230,176,74,.3);border-radius:2px}
-  .engine-item{padding:10px 12px;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);cursor:pointer;transition:.18s;display:flex;justify-content:space-between;align-items:center;gap:10px}
-  .engine-item:hover{background:rgba(230,176,74,.1);border-color:var(--line)}
-  .engine-item.on{background:rgba(230,176,74,.18);border-color:var(--gold);box-shadow:0 0 12px rgba(230,176,74,.15)}
-  .engine-info{flex:1;min-width:0}
-  .engine-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
-  .engine-desc{font-size:11px;color:var(--muted);line-height:1.4}
-  .engine-meta{font-size:10px;color:#5c6478;margin-top:3px}
-  .engine-badge{font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(230,176,74,.2);color:var(--gold);white-space:nowrap;flex:none}
-  .engine-item.on .engine-badge{background:var(--gold);color:#1a1a1a}
-
-  #screen-game{flex-direction:row;align-items:center;justify-content:center;gap:26px;padding:18px}
-  #board{border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.7),0 0 0 1px rgba(230,176,74,.25);cursor:pointer;display:block;touch-action:manipulation}
-  .side{width:265px;flex:0 0 auto;display:flex;flex-direction:column;gap:12px;max-height:88vh}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px;backdrop-filter:blur(14px)}
-  .status-main{font-size:15px;font-weight:600;letter-spacing:.5px}
-  .status-sub{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.6}
-  .turn-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;margin-right:7px;vertical-align:1px;box-shadow:0 0 8px currentColor}
-  .movelist{flex:1;overflow-y:auto;min-height:110px;max-height:36vh;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.95;padding-right:4px}
-  .movelist::-webkit-scrollbar{width:5px}
-  .movelist::-webkit-scrollbar-thumb{background:rgba(230,176,74,.3);border-radius:3px}
-  .mv-row{display:flex;gap:6px}
-  .mv-no{color:#5c6478;width:26px;flex:none;text-align:right}
-  .mv{width:64px;color:#cfd6e4;cursor:pointer;border-radius:4px;padding:0 2px}
-  .mv:hover{background:rgba(230,176,74,.15)}
-  .mv.cur{color:var(--gold);font-weight:700;background:rgba(230,176,74,.18)}
-  .side .btn{padding:9px 12px;font-size:12.5px;justify-content:center;border-radius:10px}
-  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .captured{font-size:17px;line-height:1.2;letter-spacing:1px;min-height:20px;color:#aab3c4}
-  .captured.w{color:#fff}
-
-  .eval-wrap{display:flex;align-items:center;gap:10px;height:100%}
-  .eval-bar{width:18px;height:100%;min-height:240px;background:rgba(255,255,255,.06);border-radius:9px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column}
-  .eval-white{background:linear-gradient(180deg,#f0f0f0,#c8c8c8);width:100%;height:50%;transition:height .35s cubic-bezier(.4,0,.2,1);align-self:flex-start}
-  .eval-black{background:linear-gradient(180deg,#3a3f4a,#1e2228);width:100%;flex:1;transition:.35s}
-  .eval-label{position:absolute;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:#1a1a1a;text-shadow:0 0 4px rgba(255,255,255,.6);white-space:nowrap}
-
-  .analysis-panel{max-height:300px;overflow-y:auto}
-  .analysis-panel::-webkit-scrollbar{width:4px}
-  .analysis-panel::-webkit-scrollbar-thumb{background:rgba(230,176,74,.3);border-radius:2px}
-  .line-item{padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);margin-bottom:6px;font-size:12px}
-  .line-item:first-child{background:rgba(230,176,74,.1);border-color:rgba(230,176,74,.3)}
-  .line-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-  .line-move{font-weight:700;color:var(--gold);font-family:ui-monospace,Menlo,monospace}
-  .line-eval{font-weight:700;font-size:13px}
-  .line-eval.pos{color:#6ee7a0}
-  .line-eval.neg{color:#f07a7a}
-  .line-eval.draw{color:#9aa4b8}
-  .line-depth{color:#5c6478;font-size:10px}
-  .line-pv{color:#8b93a7;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
-  .replay-bar{display:flex;align-items:center;gap:6px;margin-top:8px}
-  .replay-bar button{flex:1;padding:7px 0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);cursor:pointer;font-size:14px;transition:.18s;font-family:inherit}
-  .replay-bar button:hover{background:rgba(230,176,74,.18);border-color:var(--gold)}
-  .replay-bar button:disabled{opacity:.3;cursor:not-allowed}
-  .speed-select{padding:5px 8px;font-size:11px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:var(--text);cursor:pointer}
-
-  .modal{position:fixed;inset:0;z-index:50;background:rgba(5,7,11,.78);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
-  .modal.active{display:flex;animation:fadeIn .2s}
-  .modal-box{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 30px 80px rgba(0,0,0,.75);max-height:88vh;overflow:auto}
-  .modal-box h3{font-size:16px;color:var(--gold);letter-spacing:2px;margin-bottom:14px;font-weight:600}
-  .promo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  .promo-grid button{font-size:40px;padding:8px 0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;cursor:pointer;transition:.18s;font-family:"Segoe UI Symbol",sans-serif;line-height:1}
-  .promo-grid button:hover{background:rgba(230,176,74,.2);border-color:var(--gold)}
-  .rec-item{padding:11px 13px;border-radius:11px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);margin-bottom:8px;font-size:12.5px;cursor:pointer;transition:.18s}
-  .rec-item:hover{background:rgba(230,176,74,.1);border-color:var(--line)}
-  .rec-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-  .rec-res{font-weight:700;letter-spacing:1px}
-  .res-win{color:#6ee7a0}.res-loss{color:#f07a7a}.res-draw{color:#9aa4b8}
-  .rec-meta{color:var(--muted);font-size:11px}
-  .empty{color:#555d70;text-align:center;padding:34px 0;font-size:13px}
-  .toast{position:fixed;left:50%;bottom:36px;transform:translate(-50%,20px);background:rgba(24,28,38,.96);border:1px solid var(--line);color:var(--text);padding:11px 22px;border-radius:11px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:99;box-shadow:0 12px 40px rgba(0,0,0,.6)}
-  .toast.on{opacity:1;transform:translate(-50%,0)}
-  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(230,176,74,.25);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  @media(max-width:900px){
-    #screen-game{flex-direction:column;gap:12px;padding:10px;justify-content:flex-start}
-    .side{width:min(100%,460px);max-height:none;flex-direction:row;flex-wrap:wrap}
-    .side .card{flex:1;min-width:150px}
-    .movelist{max-height:16vh}
-    .eval-bar{min-height:180px}
-  }
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
-<div class="app">
-  <section id="screen-menu" class="screen active">
-    <div class="menu-card">
-      <div class="logo">♞</div>
-      <h1>国际象棋</h1>
-      <p class="sub">CHESS · PeerJS 联机 · 多引擎 Stockfish</p>
-      <div class="menu-btns">
-        <button class="btn primary" data-act="ai"><span class="ic">🤖</span>人机对战</button>
-        <button class="btn" data-act="local"><span class="ic">👥</span>本地双人</button>
-        <button class="btn" data-act="online"><span class="ic">🌐</span>局域网联机</button>
-        <button class="btn" data-act="records"><span class="ic">📜</span>对局记录</button>
-      </div>
-      <div class="ver" id="verLine">v5.1 · 多引擎 · 回放修复</div>
-    </div>
-  </section>
-
-  <section id="screen-game" class="screen">
-    <div class="board-wrap" style="display:flex;align-items:center;gap:10px">
-      <div class="eval-wrap" id="evalWrap" style="display:none">
-        <div class="eval-bar">
-          <div class="eval-white" id="evalWhite" style="height:50%"></div>
-          <div class="eval-black"></div>
-          <div class="eval-label" id="evalLabel">0.0</div>
+<canvas id="bg" class="bg"></canvas><div class="vignette"></div>
+<section id="menu" class="screen active">
+  <div class="menu-wrap">
+    <div class="menu-shell">
+      <div class="hero-pane">
+        <div class="menu-kicker">Aurum Engine Suite</div>
+        <h1 class="hero-title">AURUM<br>CHESS<small>THE ROYAL GAME</small></h1>
+        <p class="hero-copy">完整国际象棋规则、标准 SAN 记谱、Stockfish 19 对弈与分析，以及无需自建服务器的 WebRTC 联机。</p>
+        <div class="feature-row"><span class="feature-chip">Stockfish 19</span><span class="feature-chip">MultiPV ×3</span><span class="feature-chip">FEN Replay</span><span class="feature-chip">WebRTC</span></div>
+        <div class="hero-status">
+          <div class="status-card"><div class="status-line"><span id="menuEngineDot" class="engine-dot"></span><strong id="menuEngineStatus">Stockfish 19 · 待加载</strong></div><span id="menuEngineDetail">默认使用 Lite Single WASM；失败自动降级 ASM / 内置 AI</span></div>
+          <div class="status-card"><strong>本地档案</strong><span><b id="recordCount" style="color:#d9be7e">0</b> 局已保存</span></div>
         </div>
       </div>
-      <canvas id="board"></canvas>
-    </div>
-    <div class="side">
-      <div class="card">
-        <div class="status-main" id="statusMain"><span class="turn-dot"></span>白方走棋</div>
-        <div class="status-sub" id="statusSub">准备开始</div>
-      </div>
-
-      <div class="card analysis-panel" id="analysisPanel" style="display:none">
-        <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:1px;margin-bottom:8px">🐟 Stockfish 分析</div>
-        <div id="analysisContent"><div style="color:#555d70;font-size:11px">等待分析…</div></div>
-      </div>
-
-      <div class="card" id="replayCard" style="display:none">
-        <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:1px;margin-bottom:6px">📽 对局回放</div>
-        <div class="replay-bar">
-          <button id="rpFirst" title="第一步">⏮</button>
-          <button id="rpPrev" title="上一步">◀</button>
-          <button id="rpPlay" title="播放/暂停">▶</button>
-          <button id="rpNext" title="下一步">▶</button>
-          <button id="rpLast" title="最后一步">⏭</button>
+      <div class="menu-pane">
+        <div class="menu-head"><div><h2>开始对局</h2><p>选择一种模式继续</p></div><span class="version-pill">ENGINE 19.0.0</span></div>
+        <div class="cards">
+          <button class="card" data-mode="local"><span class="mode-icon">♟</span><b>本地双人</b><span>同一设备轮流操作，完整规则与标准记谱。</span></button>
+          <button class="card" data-mode="ai"><span class="mode-icon">♞</span><b>挑战 AI</b><span>Stockfish 19，8 档强度，加载失败自动回退。</span></button>
+          <button class="card" data-mode="lan"><span class="mode-icon">◎</span><b>联机对战</b><span>PeerJS + WebRTC，3 位房间号快速连接。</span></button>
+          <button class="card" id="recordsBtn"><span class="mode-icon">◫</span><b>棋局档案</b><span>最近 200 局、FEN 回放、Stockfish 多 PV 分析。</span></button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11px;color:var(--muted)">
-          <span id="rpStep">第 0 / 0 步</span>
-          <select class="speed-select" id="rpSpeed">
-            <option value="1500">0.5x</option>
-            <option value="1000" selected>1x</option>
-            <option value="600">1.5x</option>
-            <option value="350">2x</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="captured" id="capBlack"></div>
-        <div style="height:6px"></div>
-        <div class="captured w" id="capWhite"></div>
-      </div>
-      <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0">
-        <div class="movelist" id="movelist"></div>
-      </div>
-      <div class="btn-row">
-        <button class="btn" id="btnUndo">↩ 悔棋</button>
-        <button class="btn" id="btnFlip">⇅ 翻转</button>
-        <button class="btn" id="btnDraw">🤝 和棋</button>
-        <button class="btn" id="btnResign">🏳 认输</button>
-        <button class="btn" id="btnMenu">✕ 菜单</button>
-      </div>
-    </div>
-  </section>
-</div>
-<div class="modal" id="modal"><div class="modal-box" id="modalBox"></div></div>
-<div class="toast" id="toast"></div>
-
-<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script>
-"use strict";
-/* =========================================================================
-   0. 工具
-   ========================================================================= */
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const FILES = 'abcdefgh';
-const idxToAlg = i => FILES[i & 7] + (8 - (i >> 3));
-const algToIdx = s => (8 - parseInt(s[1])) * 8 + FILES.indexOf(s[0]);
-const colorOf = p => (p === p.toUpperCase() ? 'w' : 'b');
-const other = c => (c === 'w' ? 'b' : 'w');
-const KNIGHT_D = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
-const KING_D   = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
-const BISHOP_D = [[-1,-1],[-1,1],[1,-1],[1,1]];
-const ROOK_D   = [[-1,0],[1,0],[0,-1],[0,1]];
-const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
-function toast(msg, ms = 2000){
-  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
-  clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('on'), ms);
-}
-
-/* =========================================================================
-   1. 国际象棋核心引擎
-   ========================================================================= */
-function isAttacked(board, sq, by){
-  const r = sq >> 3, c = sq & 7;
-  const pd = by === 'w' ? 1 : -1;
-  for (const dc of [-1, 1]){
-    const rr = r + pd, cc = c + dc;
-    if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-      const p = board[rr * 8 + cc];
-      if (p === (by === 'w' ? 'P' : 'p')) return true;
-    }
-  }
-  for (const [dr, dc] of KNIGHT_D){
-    const rr = r + dr, cc = c + dc;
-    if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-      const p = board[rr * 8 + cc];
-      if (p === (by === 'w' ? 'N' : 'n')) return true;
-    }
-  }
-  for (const [dr, dc] of KING_D){
-    const rr = r + dr, cc = c + dc;
-    if (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-      const p = board[rr * 8 + cc];
-      if (p === (by === 'w' ? 'K' : 'k')) return true;
-    }
-  }
-  for (const [dr, dc] of ROOK_D){
-    let rr = r + dr, cc = c + dc;
-    while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-      const p = board[rr * 8 + cc];
-      if (p){
-        if (colorOf(p) === by && (p === 'r' || p === 'R' || p === 'q' || p === 'Q')) return true;
-        break;
-      }
-      rr += dr; cc += dc;
-    }
-  }
-  for (const [dr, dc] of BISHOP_D){
-    let rr = r + dr, cc = c + dc;
-    while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-      const p = board[rr * 8 + cc];
-      if (p){
-        if (colorOf(p) === by && (p === 'b' || p === 'B' || p === 'q' || p === 'Q')) return true;
-        break;
-      }
-      rr += dr; cc += dc;
-    }
-  }
-  return false;
-}
-
-class Chess {
-  constructor(fen = START_FEN){ this.loadFen(fen); }
-
-  loadFen(fen){
-    const parts = String(fen).trim().split(/\s+/);
-    const rows = parts[0].split('/');
-    this.board = new Array(64).fill(null);
-    for (let r = 0; r < 8; r++){
-      let c = 0;
-      for (const ch of rows[r]){
-        if (ch >= '1' && ch <= '8') c += +ch;
-        else { this.board[r * 8 + c] = ch; c++; }
-      }
-    }
-    this.turn = parts[1] || 'w';
-    const cs = parts[2] || '-';
-    this.castling = { K: cs.includes('K'), Q: cs.includes('Q'), k: cs.includes('k'), q: cs.includes('q') };
-    this.ep = (parts[3] && parts[3] !== '-') ? algToIdx(parts[3]) : -1;
-    this.halfmove = parseInt(parts[4] || '0', 10);
-    this.fullmove = parseInt(parts[5] || '1', 10);
-    this.history = [];
-    this.posKeys = [this.repKey()];
-  }
-
-  fen(){
-    let s = '';
-    for (let r = 0; r < 8; r++){
-      let empty = 0;
-      for (let c = 0; c < 8; c++){
-        const p = this.board[r * 8 + c];
-        if (!p) empty++;
-        else { if (empty){ s += empty; empty = 0; } s += p; }
-      }
-      if (empty) s += empty;
-      if (r < 7) s += '/';
-    }
-    let cast = '';
-    if (this.castling.K) cast += 'K';
-    if (this.castling.Q) cast += 'Q';
-    if (this.castling.k) cast += 'k';
-    if (this.castling.q) cast += 'q';
-    if (!cast) cast = '-';
-    return `${s} ${this.turn} ${cast} ${this.ep >= 0 ? idxToAlg(this.ep) : '-'} ${this.halfmove} ${this.fullmove}`;
-  }
-
-  repKey(){ return this.fen().split(' ').slice(0, 4).join(' '); }
-  kingSquare(color){ return this.board.indexOf(color === 'w' ? 'K' : 'k'); }
-  inCheck(color = this.turn){
-    const k = this.kingSquare(color);
-    if (k < 0) return false;
-    return isAttacked(this.board, k, other(color));
-  }
-
-  generateMoves(color = this.turn){
-    const moves = [], b = this.board;
-    const pushPawn = (from, to, piece, cap, promoRank, promoFrom) => {
-      if (promoFrom){
-        for (const pr of ['q','r','b','n'])
-          moves.push({ from, to, piece, captured: cap, flags: 'p', promo: pr });
-      } else {
-        moves.push({ from, to, piece, captured: cap, flags: cap ? 'c' : 'n', promo: null });
-      }
-    };
-
-    for (let i = 0; i < 64; i++){
-      const p = b[i];
-      if (!p || colorOf(p) !== color) continue;
-      const t = p.toLowerCase();
-      const r = i >> 3, c = i & 7;
-
-      if (t === 'p'){
-        const dir = color === 'w' ? -1 : 1;
-        const startR = color === 'w' ? 6 : 1;
-        const promoR = color === 'w' ? 0 : 7;
-        const r1 = r + dir;
-        if (r1 >= 0 && r1 < 8 && !b[r1 * 8 + c]){
-          const to = r1 * 8 + c;
-          pushPawn(i, to, p, null, promoR, r1 === promoR);
-          if (r === startR){
-            const r2 = r + 2 * dir;
-            if (!b[r2 * 8 + c])
-              moves.push({ from: i, to: r2 * 8 + c, piece: p, captured: null, flags: 'd', promo: null });
-          }
-        }
-        if (r1 >= 0 && r1 < 8){
-          for (const dc of [-1, 1]){
-            const cc = c + dc;
-            if (cc < 0 || cc > 7) continue;
-            const sq = r1 * 8 + cc, tg = b[sq];
-            if (tg && colorOf(tg) !== color) pushPawn(i, sq, p, tg, promoR, r1 === promoR);
-            else if (!tg && sq === this.ep)
-              moves.push({ from: i, to: sq, piece: p, captured: color === 'w' ? 'p' : 'P', flags: 'e', promo: null });
-          }
-        }
-      }
-      else if (t === 'n'){
-        for (const [dr, dc] of KNIGHT_D){
-          const rr = r + dr, cc = c + dc;
-          if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
-          const sq = rr * 8 + cc, tg = b[sq];
-          if (tg && colorOf(tg) === color) continue;
-          moves.push({ from: i, to: sq, piece: p, captured: tg, flags: tg ? 'c' : 'n', promo: null });
-        }
-      }
-      else if (t === 'k'){
-        for (const [dr, dc] of KING_D){
-          const rr = r + dr, cc = c + dc;
-          if (rr < 0 || rr > 7 || cc < 0 || cc > 7) continue;
-          const sq = rr * 8 + cc, tg = b[sq];
-          if (tg && colorOf(tg) === color) continue;
-          moves.push({ from: i, to: sq, piece: p, captured: tg, flags: tg ? 'c' : 'n', promo: null });
-        }
-        const homeR = color === 'w' ? 7 : 0;
-        if (i === homeR * 8 + 4){
-          const opp = other(color);
-          const kRight = color === 'w' ? this.castling.K : this.castling.k;
-          const qRight = color === 'w' ? this.castling.Q : this.castling.q;
-          if (kRight && !b[homeR * 8 + 5] && !b[homeR * 8 + 6]
-              && !isAttacked(b, homeR * 8 + 4, opp) && !isAttacked(b, homeR * 8 + 5, opp) && !isAttacked(b, homeR * 8 + 6, opp))
-            moves.push({ from: i, to: homeR * 8 + 6, piece: p, captured: null, flags: 'k', promo: null });
-          if (qRight && !b[homeR * 8 + 3] && !b[homeR * 8 + 2] && !b[homeR * 8 + 1]
-              && !isAttacked(b, homeR * 8 + 4, opp) && !isAttacked(b, homeR * 8 + 3, opp) && !isAttacked(b, homeR * 8 + 2, opp))
-            moves.push({ from: i, to: homeR * 8 + 2, piece: p, captured: null, flags: 'q', promo: null });
-        }
-      }
-      else {
-        const dirs = t === 'r' ? ROOK_D : t === 'b' ? BISHOP_D : ROOK_D.concat(BISHOP_D);
-        for (const [dr, dc] of dirs){
-          let rr = r + dr, cc = c + dc;
-          while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8){
-            const sq = rr * 8 + cc, tg = b[sq];
-            if (tg){
-              if (colorOf(tg) !== color)
-                moves.push({ from: i, to: sq, piece: p, captured: tg, flags: 'c', promo: null });
-              break;
-            }
-            moves.push({ from: i, to: sq, piece: p, captured: null, flags: 'n', promo: null });
-            rr += dr; cc += dc;
-          }
-        }
-      }
-    }
-    return moves;
-  }
-
-  generateLegalMoves(color = this.turn){
-    const out = [];
-    for (const m of this.generateMoves(color)){
-      this.makeMove(m);
-      if (!this.inCheck(color)) out.push(m);
-      this.unmakeMove();
-    }
-    return out;
-  }
-
-  makeMove(m){
-    const b = this.board;
-    const rec = {
-      move: m, castling: { ...this.castling }, ep: this.ep,
-      halfmove: this.halfmove, fullmove: this.fullmove, turn: this.turn,
-    };
-    const p = b[m.from], col = colorOf(p);
-    b[m.from] = null;
-    if (m.flags === 'e'){
-      const capSq = m.to + (col === 'w' ? 8 : -8);
-      b[capSq] = null;
-    }
-    b[m.to] = m.promo ? (col === 'w' ? m.promo.toUpperCase() : m.promo) : p;
-
-    if (m.flags === 'k'){
-      const rr = col === 'w' ? 7 : 0;
-      b[rr * 8 + 5] = b[rr * 8 + 7]; b[rr * 8 + 7] = null;
-    } else if (m.flags === 'q'){
-      const rr = col === 'w' ? 7 : 0;
-      b[rr * 8 + 3] = b[rr * 8 + 0]; b[rr * 8 + 0] = null;
-    }
-    if (p.toLowerCase() === 'k'){
-      if (col === 'w'){ this.castling.K = false; this.castling.Q = false; }
-      else { this.castling.k = false; this.castling.q = false; }
-    }
-    if (m.from === 63 || m.to === 63) this.castling.K = false;
-    if (m.from === 56 || m.to === 56) this.castling.Q = false;
-    if (m.from === 7  || m.to === 7 ) this.castling.k = false;
-    if (m.from === 0  || m.to === 0 ) this.castling.q = false;
-
-    this.ep = (m.flags === 'd') ? (m.from + m.to) / 2 : -1;
-    if (p.toLowerCase() === 'p' || m.captured) this.halfmove = 0;
-    else this.halfmove++;
-    if (this.turn === 'b') this.fullmove++;
-    this.turn = other(this.turn);
-    this.history.push(rec);
-    this.posKeys.push(this.repKey());
-    return rec;
-  }
-
-  unmakeMove(){
-    const rec = this.history.pop();
-    if (!rec) return null;
-    const m = rec.move, b = this.board;
-    this.turn = rec.turn;
-    this.fullmove = rec.fullmove;
-    this.halfmove = rec.halfmove;
-    this.ep = rec.ep;
-    this.castling = rec.castling;
-
-    const placed = b[m.to];
-    const orig = m.promo ? (colorOf(placed) === 'w' ? 'P' : 'p') : placed;
-    const col = colorOf(orig);
-    b[m.from] = orig;
-    b[m.to] = null;
-
-    if (m.flags === 'e'){
-      const capSq = m.to + (col === 'w' ? 8 : -8);
-      b[capSq] = m.captured;
-    } else if (m.captured) b[m.to] = m.captured;
-
-    if (m.flags === 'k'){
-      const rr = col === 'w' ? 7 : 0;
-      b[rr * 8 + 7] = b[rr * 8 + 5]; b[rr * 8 + 5] = null;
-    } else if (m.flags === 'q'){
-      const rr = col === 'w' ? 7 : 0;
-      b[rr * 8 + 0] = b[rr * 8 + 3]; b[rr * 8 + 3] = null;
-    }
-    this.posKeys.pop();
-    return rec;
-  }
-
-  isThreefold(){
-    const key = this.posKeys[this.posKeys.length - 1];
-    let n = 0;
-    for (const k of this.posKeys) if (k === key) n++;
-    return n >= 3;
-  }
-
-  isInsufficientMaterial(){
-    const pieces = [];
-    for (let i = 0; i < 64; i++){
-      const p = this.board[i];
-      if (p && p.toLowerCase() !== 'k') pieces.push({ p: p.toLowerCase(), sq: i });
-    }
-    if (pieces.length === 0) return true;
-    if (pieces.length === 1 && (pieces[0].p === 'n' || pieces[0].p === 'b')) return true;
-    if (pieces.length === 2 && pieces.every(x => x.p === 'b')){
-      const light = s => ((s >> 3) + (s & 7)) % 2;
-      if (light(pieces[0].sq) === light(pieces[1].sq)) return true;
-    }
-    return false;
-  }
-
-  checkGameOver(){
-    const legal = this.generateLegalMoves(this.turn);
-    if (legal.length === 0){
-      if (this.inCheck(this.turn)) return { over: true, result: other(this.turn), reason: '将杀' };
-      return { over: true, result: 'draw', reason: '逼和' };
-    }
-    if (this.halfmove >= 100) return { over: true, result: 'draw', reason: '五十回合规则' };
-    if (this.isThreefold()) return { over: true, result: 'draw', reason: '三次重复局面' };
-    if (this.isInsufficientMaterial()) return { over: true, result: 'draw', reason: '子力不足' };
-    return null;
-  }
-
-  findMove(from, to, promo){
-    return this.generateLegalMoves(this.turn).find(m =>
-      m.from === from && m.to === to && (!promo || m.promo === promo)
-    ) || null;
-  }
-}
-
-function moveToSan(chess, m){
-  const p = chess.board[m.from], t = p.toLowerCase();
-  let san = '';
-  if (m.flags === 'k') san = 'O-O';
-  else if (m.flags === 'q') san = 'O-O-O';
-  else if (t === 'p'){
-    if (m.captured) san += FILES[m.from & 7] + 'x';
-    san += idxToAlg(m.to);
-    if (m.promo) san += '=' + m.promo.toUpperCase();
-  } else {
-    san += t.toUpperCase();
-    const others = chess.generateMoves(chess.turn).filter(x =>
-      x.to === m.to && x.from !== m.from &&
-      chess.board[x.from] && chess.board[x.from].toLowerCase() === t
-    );
-    if (others.length){
-      const sameFile = others.some(x => (x.from & 7) === (m.from & 7));
-      const sameRank = others.some(x => (x.from >> 3) === (m.from >> 3));
-      if (!sameFile) san += FILES[m.from & 7];
-      else if (!sameRank) san += (8 - (m.from >> 3));
-      else san += idxToAlg(m.from);
-    }
-    if (m.captured) san += 'x';
-    san += idxToAlg(m.to);
-  }
-  chess.makeMove(m);
-  const opp = chess.turn;
-  const chk = chess.inCheck(opp);
-  const noMoves = chess.generateLegalMoves(opp).length === 0;
-  chess.unmakeMove();
-  if (chk) san += noMoves ? '#' : '+';
-  return san;
-}
-
-/* =========================================================================
-   2. 多引擎配置（使用已验证的 CDN 路径）
-   ========================================================================= */
-/**
- * 重要说明：
- * - 目前 npm 上稳定可用的 Stockfish JS/WASM 构建，最高到 Stockfish 16
- *   （包名 `stockfish@16.0.0`，含 `src/stockfish.js` 和 NNUE 版本）
- * - `stockfish.js@10.0.2` 是最稳定、最广泛使用的经典版本
- * - 用户希望有 Stockfish 19 的选项，但公共 CDN 上没有可靠的 19 版本，
- *   所以列表中包含 SF16 作为"最新可用"选项
- */
-const SF_ENGINES = [
-  {
-    id: 'sf10-cdnjs',
-    name: 'Stockfish 10 (推荐)',
-    desc: '经典稳定版，加载快，兼容性极好',
-    base: 'https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/',
-    file: 'stockfish.js',
-    size: '~1.5 MB',
-    strength: '特级大师',
-    recommended: true,
-  },
-  {
-    id: 'sf10-jsdelivr',
-    name: 'Stockfish 10 (jsDelivr)',
-    desc: '与推荐版相同，备用 CDN',
-    base: 'https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/',
-    file: 'stockfish.js',
-    size: '~1.5 MB',
-    strength: '特级大师',
-  },
-  {
-    id: 'sf16-nnue',
-    name: 'Stockfish 16 NNUE (最新)',
-    desc: '最新 NNUE 评估，棋力最强，体积较大',
-    base: 'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/',
-    file: 'stockfish-nnue-16.js',
-    size: '~40 MB',
-    strength: '超强',
-  },
-  {
-    id: 'sf16-classic',
-    name: 'Stockfish 16 (经典评估)',
-    desc: 'Stockfish 16 的经典评估版本，体积适中',
-    base: 'https://cdn.jsdelivr.net/npm/stockfish@16.0.0/src/',
-    file: 'stockfish.js',
-    size: '~8 MB',
-    strength: '特级大师',
-  },
-];
-
-let selectedEngineId = 'sf10-cdnjs';
-const ANALYSIS_ENGINE_ID = 'sf10-jsdelivr'; // 回放分析用备用 CDN，避免与对战时争抢
-
-let sfWorker = null, sfState = 'idle', sfVersion = '';
-let sfCurrentEngine = null;
-let sfLoadToken = 0;
-
-/** 创建 Stockfish Worker，显式指定 locateFile 以解决 blob worker 的 wasm 路径问题 */
-function makeSfWorker(engine){
-  const code = `
-    self.Module = self.Module || {};
-    self.Module.locateFile = function(path){
-      if (/^https?:/.test(path)) return path;
-      return ${JSON.stringify(engine.base)} + path;
-    };
-    importScripts(${JSON.stringify(engine.base + engine.file)});
-  `;
-  return new Worker(URL.createObjectURL(new Blob([code], { type:'application/javascript' })));
-}
-
-function sfHandshake(w, timeout = 20000){
-  return new Promise(resolve => {
-    let done = false;
-    const finish = v => { if (!done){ done = true; clearTimeout(t); resolve(v); } };
-    const t = setTimeout(() => finish(null), timeout);
-    let name = '';
-    w.onmessage = e => {
-      const line = typeof e.data === 'string' ? e.data : (e.data && e.data.data) || '';
-      if (typeof line === 'string'){
-        if (line.startsWith('id name ')) name = line.slice(8).trim();
-        if (line.indexOf('uciok') !== -1) finish(name || 'Stockfish');
-      }
-    };
-    w.onerror = (err) => {
-      console.warn('[Stockfish] Worker error:', err);
-      finish(null);
-    };
-    w.postMessage('uci');
-  });
-}
-
-async function loadEngine(engine){
-  if (!engine) return false;
-  if (sfState === 'ready' && sfCurrentEngine && sfCurrentEngine.id === engine.id){
-    return true;
-  }
-
-  const token = ++sfLoadToken;
-  sfState = 'loading';
-  sfVersion = '';
-  sfCurrentEngine = engine;
-
-  if (sfWorker){
-    try { sfWorker.terminate(); } catch(e){}
-    sfWorker = null;
-  }
-
-  try {
-    console.log('[Stockfish] 加载:', engine.name);
-    console.log('[Stockfish] URL:', engine.base + engine.file);
-    const w = makeSfWorker(engine);
-    const ver = await sfHandshake(w);
-
-    if (token !== sfLoadToken){ w.terminate(); return false; }
-
-    if (ver){
-      sfWorker = w;
-      sfVersion = ver + ' (' + engine.name + ')';
-      sfWorker.postMessage('setoption name Hash value 64');
-      sfWorker.postMessage('setoption name Threads value 2');
-      sfWorker.postMessage('isready');
-      sfState = 'ready';
-      console.log('[Stockfish] ✅ 加载成功:', sfVersion);
-      return true;
-    }
-    w.terminate();
-    console.warn('[Stockfish] ❌ 握手超时:', engine.id);
-  } catch (e){
-    console.warn('[Stockfish] ❌ 加载异常:', engine.id, e);
-  }
-
-  if (token !== sfLoadToken) return false;
-  sfState = 'failed';
-  return false;
-}
-
-async function initStockfish(){
-  if (sfState === 'ready') return true;
-  if (sfState === 'loading') return false;
-  const engine = SF_ENGINES.find(e => e.id === selectedEngineId) || SF_ENGINES[0];
-  return loadEngine(engine);
-}
-
-function sfBestMove(fen, depth, skill){
-  return new Promise(resolve => {
-    if (!sfWorker || sfState !== 'ready') return resolve(null);
-    let done = false;
-    const finish = v => { if (!done){ done = true; resolve(v); } };
-    const timer = setTimeout(() => finish(null), 25000);
-    sfWorker.onmessage = e => {
-      const d = typeof e.data === 'string' ? e.data : (e.data && e.data.data) || '';
-      if (typeof d === 'string' && d.indexOf('bestmove') === 0){
-        clearTimeout(timer);
-        const mv = d.split(/\s+/)[1];
-        finish(mv && mv !== '(none)' ? mv : null);
-      }
-    };
-    sfWorker.postMessage('setoption name Skill Level value ' + skill);
-    sfWorker.postMessage('setoption name MultiPV value 1');
-    sfWorker.postMessage('position fen ' + fen);
-    sfWorker.postMessage('go depth ' + depth);
-  });
-}
-
-function sfAnalyze(fen, depth = 16, multiPV = 3){
-  return new Promise(resolve => {
-    if (!sfWorker || sfState !== 'ready') return resolve(null);
-    let done = false;
-    const results = {};
-    let maxDepth = 0;
-    const finish = v => { if (!done){ done = true; clearTimeout(timer); resolve(v); } };
-    const timer = setTimeout(() => finish(Object.values(results).sort((a,b) => a.multipv - b.multipv)), 30000);
-
-    sfWorker.onmessage = e => {
-      const d = typeof e.data === 'string' ? e.data : (e.data && e.data.data) || '';
-      if (typeof d !== 'string') return;
-
-      if (d.startsWith('info ') && d.indexOf(' pv ') !== -1){
-        const parts = d.split(/\s+/);
-        let multipv = 1, scoreType = '', scoreVal = 0, depthN = 0, pvStart = -1;
-        for (let i = 1; i < parts.length; i++){
-          if (parts[i] === 'multipv') multipv = +parts[i + 1];
-          else if (parts[i] === 'depth') depthN = +parts[i + 1];
-          else if (parts[i] === 'score'){
-            scoreType = parts[i + 1];
-            scoreVal = +parts[i + 2];
-          }
-          else if (parts[i] === 'pv'){ pvStart = i + 1; break; }
-        }
-        if (pvStart > 0 && depthN >= maxDepth - 2){
-          if (depthN > maxDepth) maxDepth = depthN;
-          const pv = parts.slice(pvStart);
-          const pvSan = uciPvToSan(fen, pv);
-          results[multipv] = { multipv, depth: depthN, scoreType, scoreVal, pv, pvSan };
-        }
-      }
-
-      if (d.startsWith('bestmove')){
-        finish(Object.values(results).sort((a,b) => a.multipv - b.multipv));
-      }
-    };
-
-    sfWorker.postMessage('setoption name MultiPV value ' + multiPV);
-    sfWorker.postMessage('setoption name Skill Level value 20');
-    sfWorker.postMessage('position fen ' + fen);
-    sfWorker.postMessage('go depth ' + depth);
-  });
-}
-
-function uciPvToSan(fen, uciMoves){
-  try {
-    const c = new Chess(fen);
-    const sans = [];
-    for (const uci of uciMoves){
-      if (uci.length < 4) break;
-      const from = algToIdx(uci.slice(0, 2));
-      const to = algToIdx(uci.slice(2, 4));
-      const promo = uci.length > 4 ? uci[4].toLowerCase() : null;
-      const mv = c.findMove(from, to, promo);
-      if (!mv) break;
-      sans.push(moveToSan(c, mv));
-      c.makeMove(mv);
-    }
-    return sans;
-  } catch (e){ return uciMoves; }
-}
-
-const AI_LEVELS = [
-  { name: '入门',  depth: 1,  skill: -1, fb: 1 },
-  { name: '简单',  depth: 2,  skill: 1,  fb: 1 },
-  { name: '初级',  depth: 3,  skill: 3,  fb: 2 },
-  { name: '中级',  depth: 5,  skill: 6,  fb: 2 },
-  { name: '进阶',  depth: 7,  skill: 10, fb: 3 },
-  { name: '高级',  depth: 10, skill: 14, fb: 3 },
-  { name: '大师',  depth: 14, skill: 18, fb: 4 },
-  { name: '宗师',  depth: 18, skill: 20, fb: 5 },
-];
-
-/* =========================================================================
-   3. 回退 AI
-   ========================================================================= */
-const PVAL = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
-const PST = {
-  p: [0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10,
-      5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5,
-      5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
-  n: [-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40,
-      -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30,
-      -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30,
-      -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
-  b: [-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10,
-      -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10,
-      -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10,
-      -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
-  r: [0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5,
-      -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5,
-      -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
-  q: [-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10,
-      -10,0,5,5,5,5,0,-10, -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5,
-      -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
-  k: [-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
-      -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30,
-      -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10,
-      20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20],
-};
-
-function evalBoard(chess){
-  let score = 0;
-  for (let i = 0; i < 64; i++){
-    const p = chess.board[i];
-    if (!p) continue;
-    const t = p.toLowerCase();
-    const pstIdx = colorOf(p) === 'w' ? i : ((7 - (i >> 3)) * 8 + (i & 7));
-    const v = PVAL[t] + (PST[t] ? PST[t][pstIdx] : 0);
-    score += colorOf(p) === 'w' ? v : -v;
-  }
-  return chess.turn === 'w' ? score : -score;
-}
-
-function orderMoves(moves){
-  return moves.sort((a, b) =>
-    (b.captured ? PVAL[b.captured.toLowerCase()] : 0) -
-    (a.captured ? PVAL[a.captured.toLowerCase()] : 0)
-  );
-}
-
-function quiesce(chess, alpha, beta){
-  const stand = evalBoard(chess);
-  if (stand >= beta) return beta;
-  if (stand > alpha) alpha = stand;
-  const caps = chess.generateLegalMoves(chess.turn)
-    .filter(m => m.captured || m.promo)
-    .sort((a, b) =>
-      (b.captured ? PVAL[b.captured.toLowerCase()] : 800) -
-      (a.captured ? PVAL[a.captured.toLowerCase()] : 800)
-    );
-  for (const m of caps){
-    chess.makeMove(m);
-    const sc = -quiesce(chess, -beta, -alpha);
-    chess.unmakeMove();
-    if (sc >= beta) return beta;
-    if (sc > alpha) alpha = sc;
-  }
-  return alpha;
-}
-
-function negamax(chess, depth, alpha, beta){
-  if (depth === 0) return quiesce(chess, alpha, beta);
-  const moves = orderMoves(chess.generateLegalMoves(chess.turn));
-  if (moves.length === 0) return chess.inCheck(chess.turn) ? -99999 + (10 - depth) : 0;
-  let best = -Infinity;
-  for (const m of moves){
-    chess.makeMove(m);
-    const sc = -negamax(chess, depth - 1, -beta, -alpha);
-    chess.unmakeMove();
-    if (sc > best) best = sc;
-    if (best > alpha) alpha = best;
-    if (alpha >= beta) break;
-  }
-  return best;
-}
-
-function aiFallbackMove(chess, depth){
-  const moves = orderMoves(chess.generateLegalMoves(chess.turn));
-  if (!moves.length) return null;
-  let best = null, bestSc = -Infinity;
-  for (const m of moves){
-    chess.makeMove(m);
-    const sc = -negamax(chess, depth - 1, -Infinity, -bestSc === Infinity ? Infinity : -bestSc);
-    chess.unmakeMove();
-    if (sc > bestSc || best === null){ bestSc = sc; best = m; }
-  }
-  return best;
-}
-
-/* =========================================================================
-   4. 绘制
-   ========================================================================= */
-const boardCanvas = $('#board');
-const bctx = boardCanvas.getContext('2d');
-const GLYPH = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
-
-const View = {
-  flipped: false, size: 480,
-  dpr: Math.min(window.devicePixelRatio || 1, 2),
-  selected: -1, legalTargets: [], lastMove: null, checkSq: -1, hover: -1,
-};
-
-function sqToXY(sq, sqSize){
-  let r = sq >> 3, c = sq & 7;
-  if (View.flipped){ r = 7 - r; c = 7 - c; }
-  return [c * sqSize, r * sqSize];
-}
-function xyToSq(x, y, sqSize){
-  let c = Math.floor(x / sqSize), r = Math.floor(y / sqSize);
-  if (c < 0 || c > 7 || r < 0 || r > 7) return -1;
-  if (View.flipped){ r = 7 - r; c = 7 - c; }
-  return r * 8 + c;
-}
-
-function resizeBoard(){
-  const availW = Math.min(window.innerWidth - 40, window.innerWidth > 900 ? window.innerWidth - 380 : window.innerWidth - 24);
-  const availH = window.innerHeight > 900 ? window.innerHeight - 60 : window.innerHeight - (window.innerWidth > 900 ? 60 : 300);
-  let size = Math.max(240, Math.min(availW, availH, 600));
-  size = Math.floor(size / 8) * 8;
-  View.size = size;
-  boardCanvas.style.width = size + 'px';
-  boardCanvas.style.height = size + 'px';
-  boardCanvas.width = size * View.dpr;
-  boardCanvas.height = size * View.dpr;
-  bctx.setTransform(View.dpr, 0, 0, View.dpr, 0, 0);
-  drawBoard();
-  const bar = document.querySelector('.eval-bar');
-  if (bar) bar.style.height = size + 'px';
-}
-
-function drawBoard(){
-  const S = View.size, sq = S / 8, g = bctx;
-  g.clearRect(0, 0, S, S);
-  const chess = Game.chess;
-  if (!chess) return;
-
-  for (let i = 0; i < 64; i++){
-    const [x, y] = sqToXY(i, sq);
-    const r = i >> 3, c = i & 7;
-    const light = (r + c) % 2 === 0;
-    g.fillStyle = light ? '#eadfc8' : '#6f8f5b';
-    g.fillRect(x, y, sq, sq);
-    g.fillStyle = light ? 'rgba(111,143,91,.85)' : 'rgba(234,223,200,.75)';
-    g.font = `${Math.max(9, sq * 0.19)}px system-ui,sans-serif`;
-    if ((View.flipped ? (i >> 3) === 7 : (i >> 3) === 0)){
-      g.textAlign = 'left'; g.textBaseline = 'top';
-      g.fillText(FILES[i & 7], x + sq * 0.06, y + sq * 0.05);
-    }
-    if ((View.flipped ? (i & 7) === 0 : (i & 7) === 7)){
-      g.textAlign = 'right'; g.textBaseline = 'bottom';
-      g.fillText(String(8 - (i >> 3)), x + sq * 0.94, y + sq * 0.96);
-    }
-  }
-
-  if (View.lastMove){
-    for (const s of [View.lastMove.from, View.lastMove.to]){
-      const [x, y] = sqToXY(s, sq);
-      g.fillStyle = 'rgba(246,201,86,.32)';
-      g.fillRect(x, y, sq, sq);
-    }
-  }
-  if (View.checkSq >= 0){
-    const [x, y] = sqToXY(View.checkSq, sq);
-    const grd = g.createRadialGradient(x + sq/2, y + sq/2, sq*0.1, x + sq/2, y + sq/2, sq*0.7);
-    grd.addColorStop(0, 'rgba(255,60,60,.75)');
-    grd.addColorStop(1, 'rgba(255,60,60,0)');
-    g.fillStyle = grd; g.fillRect(x, y, sq, sq);
-  }
-  if (View.selected >= 0){
-    const [x, y] = sqToXY(View.selected, sq);
-    g.fillStyle = 'rgba(242,193,78,.45)';
-    g.fillRect(x, y, sq, sq);
-    g.strokeStyle = '#f2c14e'; g.lineWidth = Math.max(2, sq * 0.045);
-    g.strokeRect(x + 1, y + 1, sq - 2, sq - 2);
-  }
-  for (const m of View.legalTargets){
-    const [x, y] = sqToXY(m.to, sq);
-    if (m.captured || m.flags === 'e'){
-      g.strokeStyle = 'rgba(220,60,60,.85)';
-      g.lineWidth = Math.max(3, sq * 0.075);
-      g.beginPath(); g.arc(x + sq/2, y + sq/2, sq * 0.42, 0, Math.PI * 2); g.stroke();
-    } else {
-      g.fillStyle = 'rgba(30,40,25,.34)';
-      g.beginPath(); g.arc(x + sq/2, y + sq/2, sq * 0.155, 0, Math.PI * 2); g.fill();
-    }
-  }
-  if (View.hover >= 0 && View.selected < 0){
-    const [x, y] = sqToXY(View.hover, sq);
-    g.strokeStyle = 'rgba(255,255,255,.22)';
-    g.lineWidth = 2; g.strokeRect(x + 1, y + 1, sq - 2, sq - 2);
-  }
-
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `${sq * 0.82}px "Segoe UI Symbol","Apple Symbols","Noto Sans Symbols 2",sans-serif`;
-  for (let i = 0; i < 64; i++){
-    const p = chess.board[i];
-    if (!p) continue;
-    const [x, y] = sqToXY(i, sq);
-    const cx = x + sq / 2, cy = y + sq / 2 + sq * 0.03;
-    const white = colorOf(p) === 'w';
-    const glyph = GLYPH[p.toLowerCase()];
-    g.save();
-    g.shadowColor = 'rgba(0,0,0,.42)'; g.shadowBlur = sq * 0.11; g.shadowOffsetY = sq * 0.055;
-    g.fillStyle = white ? '#ffffff' : '#25292e';
-    g.fillText(glyph, cx, cy);
-    g.restore();
-    g.lineWidth = Math.max(1, sq * 0.028);
-    g.strokeStyle = white ? 'rgba(40,44,50,.9)' : 'rgba(0,0,0,.55)';
-    g.strokeText(glyph, cx, cy);
-  }
-}
-
-/* =========================================================================
-   5. 评估条
-   ========================================================================= */
-function updateEvalBar(scoreCp, scoreType){
-  const el = $('#evalWrap');
-  if (!el) return;
-  const whiteBar = $('#evalWhite');
-  const label = $('#evalLabel');
-  if (!whiteBar || !label) return;
-
-  let cp = scoreCp;
-  let display = '';
-  if (scoreType === 'mate'){
-    cp = scoreCp > 0 ? 10000 : -10000;
-    display = 'M' + Math.abs(scoreCp);
-  } else {
-    display = (cp >= 0 ? '+' : '') + (cp / 100).toFixed(1);
-  }
-
-  const sig = 2 / (1 + Math.exp(-cp / 400)) - 1;
-  const pct = 50 + sig * 45;
-  whiteBar.style.height = pct + '%';
-  label.textContent = display;
-
-  const boardHeight = View.size || 480;
-  const px = pct / 100 * boardHeight;
-  label.style.top = Math.max(4, Math.min(boardHeight - 22, px - 14)) + 'px';
-  label.style.color = cp >= 0 ? '#1a1a1a' : '#eee';
-  label.style.textShadow = cp >= 0 ? '0 0 4px rgba(255,255,255,.6)' : '0 0 4px rgba(0,0,0,.6)';
-  el.style.display = '';
-}
-
-function hideEvalBar(){
-  const el = $('#evalWrap');
-  if (el) el.style.display = 'none';
-}
-
-/* =========================================================================
-   6. 游戏状态
-   ========================================================================= */
-const Game = {
-  chess: null, mode: 'local', playerColor: 'w', aiLevel: 3, aiColor: 'b',
-  running: false, thinking: false, myTurnLock: false,
-  moveSans: [], moveHistorySnapshot: [], startTime: null,
-  replayMode: false, replayGame: null, replayIndex: 0,
-  replayTimer: null, replaySpeed: 1000,
-  replayMoves: [],
-  analysisRequestId: 0,
-};
-
-function startGame(mode, opts = {}){
-  exitReplayMode();
-  Game.mode = mode;
-  Game.chess = new Chess();
-  Game.moveSans = [];
-  Game.moveHistorySnapshot = [];
-  Game.running = true;
-  Game.thinking = false;
-  Game.myTurnLock = false;
-  Game.startTime = Date.now();
-  View.selected = -1; View.legalTargets = [];
-  View.lastMove = null; View.checkSq = -1; View.flipped = false;
-
-  if (mode === 'ai'){
-    Game.playerColor = opts.color || 'w';
-    Game.aiColor = other(Game.playerColor);
-    Game.aiLevel = opts.level != null ? opts.level : 3;
-    View.flipped = Game.playerColor === 'b';
-  } else if (mode === 'online'){
-    Game.playerColor = opts.color || 'w';
-    View.flipped = Game.playerColor === 'b';
-  } else {
-    Game.playerColor = 'w';
-  }
-  hideEvalBar();
-  $('#analysisPanel').style.display = 'none';
-  $('#replayCard').style.display = 'none';
-  showScreen('screen-game');
-  resizeBoard();
-  renderMoveList(); renderCaptured(); updateStatus(); drawBoard();
-  maybeAI();
-}
-
-function showScreen(id){
-  $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
-  if (id === 'screen-game') setTimeout(resizeBoard, 40);
-}
-
-function updateStatus(){
-  const c = Game.chess;
-  if (!c) return;
-  if (Game.replayMode){
-    $('#statusMain').innerHTML = '📽 回放模式';
-    $('#statusSub').textContent = Game.replayIndex === 0 ? '初始局面' :
-      `第 ${Game.replayIndex} / ${Game.replayMoves.length} 步`;
-    return;
-  }
-  const turnName = c.turn === 'w' ? '白方' : '黑方';
-  const dot = c.turn === 'w' ? '#ffffff' : '#1c1c1c';
-  let main = `<span class="turn-dot" style="background:${dot};color:${dot}"></span>${turnName}走棋`;
-  if (Game.thinking) main = `<span class="spin"></span>电脑思考中…`;
-  const over = c.checkGameOver();
-  let sub = '';
-  if (over){
-    if (over.result === 'draw') sub = `和棋 · ${over.reason}`;
-    else sub = `${over.result === 'w' ? '白方' : '黑方'}胜 · ${over.reason}`;
-  } else {
-    const parts = [];
-    if (c.inCheck(c.turn)) parts.push('⚠ 将军中');
-    if (Game.mode === 'ai') parts.push(`难度：${AI_LEVELS[Game.aiLevel].name}`);
-    if (Game.mode === 'online') parts.push(`你执${Game.playerColor === 'w' ? '白' : '黑'}`);
-    if (Game.mode === 'local') parts.push('本地双人');
-    parts.push(`第 ${c.fullmove} 回合`);
-    sub = parts.join(' · ');
-  }
-  $('#statusMain').innerHTML = main;
-  $('#statusSub').textContent = sub;
-}
-
-function renderMoveList(){
-  const el = $('#movelist');
-  const sans = Game.replayMode ? Game.replayMoves.map(m => m.san) : Game.moveSans;
-  const curIdx = Game.replayMode ? Game.replayIndex : -1;
-
-  if (!sans.length){ el.innerHTML = '<div style="color:#555d70;font-size:12px;padding:6px">尚无着法</div>'; return; }
-  let html = '';
-  for (let i = 0; i < sans.length; i += 2){
-    const no = i / 2 + 1, w = sans[i] || '', b = sans[i + 1] || '';
-    const wCur = (curIdx === i + 1);
-    const bCur = (curIdx === i + 2);
-    html += `<div class="mv-row"><span class="mv-no">${no}.</span>` +
-            `<span class="mv${wCur ? ' cur' : ''}" data-idx="${i+1}">${w}</span>` +
-            `<span class="mv${bCur ? ' cur' : ''}" data-idx="${i+2}">${b}</span></div>`;
-  }
-  el.innerHTML = html;
-  el.scrollTop = el.scrollHeight;
-
-  if (Game.replayMode){
-    el.querySelectorAll('.mv[data-idx]').forEach(span => {
-      span.onclick = () => {
-        const idx = +span.dataset.idx;
-        if (idx >= 1 && idx <= Game.replayMoves.length) jumpToReplayStep(idx);
-      };
-    });
-  }
-}
-
-function renderCaptured(){
-  const c = Game.chess;
-  if (!c) return;
-  const start = { p: 8, n: 2, b: 2, r: 2, q: 1 };
-  const cur = { w: {}, b: {} };
-  for (const p of c.board){
-    if (!p) continue;
-    const col = colorOf(p), t = p.toLowerCase();
-    cur[col][t] = (cur[col][t] || 0) + 1;
-  }
-  const missing = col => {
-    const out = [];
-    for (const t of ['q','r','b','n','p']){
-      const n = start[t] - (cur[col][t] || 0);
-      for (let i = 0; i < n; i++) out.push(GLYPH[t]);
-    }
-    return out.join('');
-  };
-  $('#capWhite').textContent = missing('w');
-  $('#capBlack').textContent = missing('b');
-}
-
-/* =========================================================================
-   7. 游戏操作
-   ========================================================================= */
-function onSquareClick(sq){
-  if (Game.replayMode) return;
-  const c = Game.chess;
-  if (!c || !Game.running || Game.thinking) return;
-  if (Game.mode === 'ai' && c.turn !== Game.playerColor) return;
-  if (Game.mode === 'online' && c.turn !== Game.playerColor) return;
-  if (Game.myTurnLock) return;
-  if (c.checkGameOver()) return;
-
-  const piece = c.board[sq];
-  if (View.selected >= 0){
-    const candidates = View.legalTargets.filter(m => m.to === sq);
-    if (candidates.length){
-      if (candidates.length > 1 && candidates[0].promo){
-        askPromotion(c.turn, pr => {
-          const mv = candidates.find(m => m.promo === pr);
-          if (mv) commitMove(mv);
-        });
-      } else commitMove(candidates[0]);
-      return;
-    }
-  }
-  if (piece && colorOf(piece) === c.turn){
-    View.selected = sq;
-    View.legalTargets = c.generateLegalMoves(c.turn).filter(m => m.from === sq);
-  } else {
-    View.selected = -1; View.legalTargets = [];
-  }
-  drawBoard();
-}
-
-/**
- * 落子核心：保存走之前和走之后的 FEN，供回放使用
- */
-function commitMove(mv, fromRemote = false){
-  const c = Game.chess;
-  const san = moveToSan(c, mv);
-  const fenBefore = c.fen();   // 走之前的局面 FEN
-  c.makeMove(mv);
-  const fenAfter = c.fen();    // 走之后的局面 FEN
-
-  Game.moveSans.push(san);
-  Game.moveHistorySnapshot.push({
-    fenBefore,
-    fenAfter,
-    san,
-    move: { from: mv.from, to: mv.to, promo: mv.promo || null },
-  });
-
-  View.selected = -1; View.legalTargets = [];
-  View.lastMove = { from: mv.from, to: mv.to };
-  View.checkSq = c.inCheck(c.turn) ? c.kingSquare(c.turn) : -1;
-
-  renderMoveList(); renderCaptured(); drawBoard(); updateStatus();
-
-  if (Game.mode === 'online' && !fromRemote && Net.conn && Net.conn.open){
-    Net.conn.send({ type: 'move', from: mv.from, to: mv.to, promo: mv.promo || null });
-  }
-
-  const over = c.checkGameOver();
-  if (over){ Game.running = false; setTimeout(() => endGame(over), 220); return; }
-  maybeAI();
-}
-
-function maybeAI(){
-  const c = Game.chess;
-  if (Game.mode !== 'ai' || !Game.running || c.turn !== Game.aiColor || Game.thinking) return;
-  Game.thinking = true;
-  updateStatus();
-
-  const level = AI_LEVELS[Game.aiLevel];
-
-  (async () => {
-    const t0 = Date.now();
-    let mv = null;
-
-    if (sfState === 'ready'){
-      const uci = await sfBestMove(c.fen(), level.depth, level.skill);
-      if (uci && uci.length >= 4){
-        const from = algToIdx(uci.slice(0, 2));
-        const to = algToIdx(uci.slice(2, 4));
-        const promo = uci.length > 4 ? uci[4].toLowerCase() : null;
-        mv = c.findMove(from, to, promo) || c.findMove(from, to, null);
-      }
-    }
-    if (!mv) mv = aiFallbackMove(c, level.fb);
-
-    const elapsed = Date.now() - t0;
-    if (elapsed < 260) await new Promise(r => setTimeout(r, 260 - elapsed));
-
-    Game.thinking = false;
-    if (!mv){ updateStatus(); return; }
-    commitMove(mv);
-  })();
-}
-
-function askPromotion(color, cb){
-  const box = $('#modalBox'), isWhite = color === 'w';
-  box.innerHTML = `<h3>选择升变棋子</h3><div class="promo-grid">` +
-    ['q','r','b','n'].map(t =>
-      `<button data-p="${t}" style="color:${isWhite ? '#fff' : '#e6b04a'}">${GLYPH[t]}</button>`
-    ).join('') + `</div>`;
-  $('#modal').classList.add('active');
-  box.querySelectorAll('button').forEach(b => {
-    b.onclick = () => { $('#modal').classList.remove('active'); cb(b.dataset.p); };
-  });
-}
-
-function endGame(over){
-  Game.running = false;
-  View.checkSq = -1; drawBoard();
-
-  let title, sub, cls;
-  if (over.result === 'draw'){ title = '和棋'; sub = over.reason; cls = 'res-draw'; }
-  else {
-    title = `${over.result === 'w' ? '白方' : '黑方'} 获胜`;
-    sub = over.reason;
-    let myResult = Game.mode === 'local' ? 'draw' : (over.result === Game.playerColor ? 'win' : 'loss');
-    cls = myResult === 'win' ? 'res-win' : myResult === 'loss' ? 'res-loss' : 'res-draw';
-  }
-
-  const box = $('#modalBox');
-  box.innerHTML = `
-    <h3>对局结束</h3>
-    <div style="font-size:26px;font-weight:700;margin:6px 0 8px" class="${cls}">${title}</div>
-    <div style="color:#8b93a7;font-size:13px;margin-bottom:18px">${sub}</div>
-    <div style="font-size:12px;color:#6b7280;line-height:1.8;margin-bottom:16px">
-      共 ${Math.ceil(Game.moveSans.length / 2)} 回合 · ${Game.moveSans.length} 步
-    </div>
-    <div class="actions" style="margin-top:0">
-      <button class="btn" id="mRematch">再来一局</button>
-      <button class="btn" id="mClose">查看棋盘</button>
-    </div>`;
-  $('#modal').classList.add('active');
-  $('#mRematch').onclick = () => { $('#modal').classList.remove('active'); rematch(); };
-  $('#mClose').onclick = () => $('#modal').classList.remove('active');
-
-  saveRecord(over);
-  updateStatus();
-}
-
-function rematch(){
-  if (Game.mode === 'ai') startGame('ai', { color: Game.playerColor, level: Game.aiLevel });
-  else if (Game.mode === 'online') startGame('online', { color: Game.playerColor });
-  else startGame('local');
-}
-
-/* =========================================================================
-   8. 对局记录
-   ========================================================================= */
-const REC_KEY = 'chess_records_v5_1';
-
-function loadRecords(){
-  try { return JSON.parse(localStorage.getItem(REC_KEY) || '[]'); } catch (e){ return []; }
-}
-function saveRecords(list){
-  try { localStorage.setItem(REC_KEY, JSON.stringify(list.slice(0, 200))); } catch (e){}
-}
-function saveRecord(over){
-  const modeText = Game.mode === 'ai' ? `人机 · ${AI_LEVELS[Game.aiLevel].name}`
-                 : Game.mode === 'online' ? '局域网联机' : '本地双人';
-  let result;
-  if (over.result === 'draw' || Game.mode === 'local') result = 'draw';
-  else result = (over.result === Game.playerColor) ? 'win' : 'loss';
-
-  const list = loadRecords();
-  list.unshift({
-    id: Date.now(),
-    date: new Date().toLocaleString('zh-CN', { hour12: false }),
-    mode: modeText, result,
-    resultText: over.result === 'draw' ? '和棋' : (over.result === 'w' ? '白胜' : '黑胜'),
-    reason: over.reason,
-    moves: Game.moveSans.slice(),
-    // 关键修复：保存完整的 FEN 信息，回放时直接恢复，不再依赖 findMove
-    moveDetails: Game.moveHistorySnapshot.map(m => ({
-      fenBefore: m.fenBefore,
-      fenAfter: m.fenAfter,
-      san: m.san,
-      move: m.move,
-    })),
-    duration: Math.round((Date.now() - (Game.startTime || Date.now())) / 1000),
-  });
-  saveRecords(list);
-}
-
-function showRecords(){
-  const list = loadRecords(), box = $('#modalBox');
-  if (!list.length){
-    box.innerHTML = `<h3>对局记录</h3><div class="empty">暂无对局记录</div>
-      <div class="actions" style="margin-top:0"><button class="btn" id="rClose">关闭</button></div>`;
-  } else {
-    box.innerHTML = `<h3>对局记录（${list.length}）</h3>
-      <div class="hint" style="margin-bottom:12px">点击任意记录可回放并分析</div>` +
-      list.map((r, i) => `
-        <div class="rec-item" data-rec="${i}">
-          <div class="rec-top">
-            <span style="color:#c9d1e0">${r.mode}</span>
-            <span class="rec-res ${r.result === 'win' ? 'res-win' : r.result === 'loss' ? 'res-loss' : 'res-draw'}">
-              ${r.result === 'win' ? '胜' : r.result === 'loss' ? '负' : '和'}
-            </span>
+        <div id="setup" class="panel setup" style="display:none">
+          <div class="setup-title" id="setupTitle">对局设置</div>
+          <div class="row">
+            <div class="field" id="colorField"><label>执棋</label><select id="playerColor"><option value="w">白方</option><option value="b">黑方</option><option value="r">随机</option></select></div>
+            <div class="field" id="diffField"><label>AI 难度</label><select id="difficulty"></select></div>
+            <div class="field" id="engineField"><label>引擎</label><select id="engineChoice">
+              <option value="sf19-lite">Stockfish 19 Lite Single（推荐）</option>
+              <option value="sf19-full">Stockfish 19 Full Single（大文件）</option>
+              <option value="sf19-asm">Stockfish 19 ASM（兼容）</option>
+              <option value="builtin">内置回退 AI</option>
+            </select></div>
           </div>
-          <div class="rec-meta">${r.date} · ${r.resultText}（${r.reason}）· ${Math.ceil(r.moves.length / 2)} 回合 · ${r.duration}s</div>
-          <div style="font-size:10.5px;color:#4a5165;margin-top:4px">🔍 点击回放</div>
-        </div>`).join('') +
-      `<div class="actions" style="margin-top:14px">
-        <button class="btn" id="rClear" style="border-color:rgba(240,122,122,.4);color:#f0a0a0">清空记录</button>
-        <button class="btn" id="rClose">关闭</button>
-      </div>`;
-
-    setTimeout(() => {
-      box.querySelectorAll('.rec-item').forEach(el => {
-        el.onclick = () => {
-          const idx = +el.dataset.rec;
-          const rec = list[idx];
-          $('#modal').classList.remove('active');
-          enterReplayMode(rec);
-        };
-      });
-      const c = $('#rClear');
-      if (c) c.onclick = () => { localStorage.removeItem(REC_KEY); showRecords(); toast('记录已清空'); };
-    }, 0);
-  }
-  $('#modal').classList.add('active');
-  const cl = $('#rClose');
-  if (cl) cl.onclick = () => $('#modal').classList.remove('active');
-}
-
-/* =========================================================================
-   9. 回放模式（关键修复）
-   ========================================================================= */
-function enterReplayMode(rec){
-  exitReplayMode();
-
-  Game.replayMode = true;
-  Game.replayMoves = rec.moveDetails && rec.moveDetails.length
-    ? rec.moveDetails
-    : rec.moves.map(san => ({ fenBefore: null, fenAfter: null, san, move: null }));
-  Game.replayIndex = 0;
-  Game.replaySpeed = 1000;
-  Game.replayGame = new Chess();
-  Game.chess = Game.replayGame;
-  Game.running = false;
-  Game.thinking = false;
-
-  View.selected = -1; View.legalTargets = [];
-  View.lastMove = null; View.checkSq = -1;
-  View.flipped = false;
-
-  $('#replayCard').style.display = '';
-  $('#analysisPanel').style.display = '';
-  $('#analysisContent').innerHTML = '<div style="color:#555d70;font-size:11px">切换步骤时自动分析…</div>';
-  showScreen('screen-game');
-
-  resizeBoard();
-  renderMoveList();
-  renderCaptured();
-  updateStatus();
-  drawBoard();
-  updateReplayButtons();
-
-  ensureAnalysisEngine().then(() => analyzeCurrentReplayPosition());
-}
-
-async function ensureAnalysisEngine(){
-  if (sfState === 'ready' && sfCurrentEngine && sfCurrentEngine.id === ANALYSIS_ENGINE_ID) return true;
-  if (sfState === 'ready' && sfCurrentEngine) return true; // 有引擎就绪即可用
-
-  const engine = SF_ENGINES.find(e => e.id === ANALYSIS_ENGINE_ID);
-  if (!engine) return false;
-
-  toast('正在加载分析引擎…', 2000);
-  return await loadEngine(engine);
-}
-
-function exitReplayMode(){
-  if (Game.replayTimer){ clearInterval(Game.replayTimer); Game.replayTimer = null; }
-  Game.replayMode = false;
-  Game.replayGame = null;
-  Game.replayIndex = 0;
-  Game.replayMoves = [];
-  $('#replayCard').style.display = 'none';
-  $('#analysisPanel').style.display = 'none';
-  hideEvalBar();
-}
-
-/**
- * 回放恢复核心函数
- * 关键改进：优先直接用 FEN 恢复局面，不再依赖 findMove 逐步重建
- * - idx === 0：使用第 1 步的 fenBefore（即起始局面）
- * - idx > 0：使用第 idx 步的 fenAfter（即走完前 idx 步后的局面）
- */
-function restoreReplayTo(idx){
-  let c;
-
-  if (idx === 0){
-    // 恢复到初始局面
-    const first = Game.replayMoves[0];
-    if (first && first.fenBefore){
-      c = new Chess(first.fenBefore);
-    } else {
-      c = new Chess();
-    }
-  } else {
-    // 恢复到走完前 idx 步后的局面
-    const prev = Game.replayMoves[idx - 1];
-    if (prev && prev.fenAfter){
-      // 直接使用保存的 FEN，一步到位
-      c = new Chess(prev.fenAfter);
-    } else {
-      // 兼容旧数据：逐步恢复
-      c = new Chess();
-      for (let i = 0; i < idx; i++){
-        const md = Game.replayMoves[i];
-        if (!md) break;
-        if (md.move){
-          const mv = c.findMove(md.move.from, md.move.to, md.move.promo);
-          if (mv) c.makeMove(mv);
-          else break;
-        } else {
-          break;
-        }
-      }
-    }
-  }
-
-  Game.replayGame = c;
-  Game.chess = c;
-  Game.replayIndex = idx;
-
-  // 更新最后一步高亮
-  if (idx > 0 && Game.replayMoves[idx - 1] && Game.replayMoves[idx - 1].move){
-    View.lastMove = {
-      from: Game.replayMoves[idx - 1].move.from,
-      to: Game.replayMoves[idx - 1].move.to,
-    };
-  } else {
-    View.lastMove = null;
-  }
-  View.checkSq = c.inCheck(c.turn) ? c.kingSquare(c.turn) : -1;
-  View.selected = -1; View.legalTargets = [];
-
-  drawBoard();
-  renderMoveList();
-  renderCaptured();
-  updateStatus();
-  updateReplayButtons();
-  analyzeCurrentReplayPosition();
-}
-
-function jumpToReplayStep(idx){
-  if (idx < 0 || idx > Game.replayMoves.length) return;
-  restoreReplayTo(idx);
-}
-
-function updateReplayButtons(){
-  const n = Game.replayMoves.length;
-  const i = Game.replayIndex;
-  $('#rpFirst').disabled = (i <= 0);
-  $('#rpPrev').disabled = (i <= 0);
-  $('#rpNext').disabled = (i >= n);
-  $('#rpLast').disabled = (i >= n);
-  $('#rpStep').textContent = `第 ${i} / ${n} 步`;
-}
-
-function toggleReplayPlay(){
-  if (Game.replayTimer){
-    clearInterval(Game.replayTimer);
-    Game.replayTimer = null;
-    $('#rpPlay').textContent = '▶';
-    return;
-  }
-  if (Game.replayIndex >= Game.replayMoves.length) return;
-  $('#rpPlay').textContent = '⏸';
-  Game.replayTimer = setInterval(() => {
-    if (Game.replayIndex >= Game.replayMoves.length){
-      clearInterval(Game.replayTimer);
-      Game.replayTimer = null;
-      $('#rpPlay').textContent = '▶';
-      return;
-    }
-    jumpToReplayStep(Game.replayIndex + 1);
-  }, Game.replaySpeed);
-}
-
-/* =========================================================================
-   10. 局面分析
-   ========================================================================= */
-async function analyzeCurrentReplayPosition(){
-  if (!Game.replayMode) return;
-  const reqId = ++Game.analysisRequestId;
-  const fen = Game.chess.fen();
-  const panel = $('#analysisContent');
-
-  panel.innerHTML = '<div style="color:#8b93a7;font-size:11px"><span class="spin"></span>分析中…</div>';
-
-  if (sfState !== 'ready'){
-    const score = -evalBoard(Game.chess);
-    updateEvalBar(score, 'cp');
-    const mv = aiFallbackMove(Game.chess, 3);
-    if (mv){
-      const san = moveToSan(Game.chess, mv);
-      panel.innerHTML = `<div class="line-item">
-        <div class="line-head">
-          <span class="line-move">${san}</span>
-          <span class="line-eval ${score >= 0 ? 'pos' : score <= -50 ? 'neg' : 'draw'}">${(score/100).toFixed(1)}</span>
+          <div id="engineTestRow" class="engine-test" style="display:none"><span id="testDot" class="engine-dot"></span><span id="testText">可先测试 Stockfish 19 是否能在当前浏览器启动</span><button class="btn" id="engineTestBtn" style="margin-left:auto;padding:6px 9px">引擎自检</button></div>
+          <div id="protocolHint" class="protocol-hint">当前为本地档案环境。V5 会跳过被 Android 拦截的 content:// Worker，直接从 npm CDN 的 <b>/bin</b> 加载 Stockfish 19。</div>
+          <details id="engineDiag" class="engine-diag" style="display:none"><summary>查看引擎诊断日志</summary><pre id="engineDiagLog">尚未运行自检。</pre></details>
+          <div id="lanSetup" class="lanbox" style="display:none">
+            <label>3 位房间号（双方输入相同号码）</label>
+            <input id="roomCode" inputmode="numeric" maxlength="3" pattern="[0-9]{3}" placeholder="例如 314">
+            <div class="sub">先进入房间的一方作为房主并执白；后进入的一方执黑。</div>
+          </div>
+          <div class="row" style="margin-top:14px"><button class="btn primary" id="startBtn">开始对局</button><button class="btn" id="cancelSetup">取消</button></div>
         </div>
-        <div class="line-depth">内置 AI · 深度 3（Stockfish 未就绪）</div>
-      </div>`;
-    }
-    return;
-  }
-
-  const quickResult = await sfAnalyze(fen, 10, 1);
-  if (reqId !== Game.analysisRequestId) return;
-  if (quickResult && quickResult[0]){
-    const q = quickResult[0];
-    const cp = q.scoreType === 'mate' ? (q.scoreVal > 0 ? 10000 : -10000) : q.scoreVal;
-    const realCp = Game.chess.turn === 'w' ? cp : -cp;
-    updateEvalBar(realCp, q.scoreType);
-  }
-
-  panel.innerHTML = '<div style="color:#8b93a7;font-size:11px"><span class="spin"></span>深度分析中…</div>';
-  const results = await sfAnalyze(fen, 16, 3);
-  if (reqId !== Game.analysisRequestId) return;
-
-  if (!results || !results.length){
-    panel.innerHTML = '<div style="color:#555d70;font-size:11px">分析失败</div>';
-    return;
-  }
-
-  if (results[0]){
-    const r = results[0];
-    const cp = r.scoreType === 'mate' ? (r.scoreVal > 0 ? 10000 : -10000) : r.scoreVal;
-    const realCp = Game.chess.turn === 'w' ? cp : -cp;
-    updateEvalBar(realCp, r.scoreType);
-  }
-
-  let html = '';
-  for (const r of results){
-    let evalStr = '';
-    let evalCls = 'draw';
-    if (r.scoreType === 'mate'){
-      evalStr = (r.scoreVal > 0 ? '+M' : '-M') + Math.abs(r.scoreVal);
-      evalCls = r.scoreVal > 0 ? 'pos' : 'neg';
-    } else {
-      const cpVal = Game.chess.turn === 'w' ? r.scoreVal : -r.scoreVal;
-      evalStr = (cpVal >= 0 ? '+' : '') + (cpVal / 100).toFixed(2);
-      evalCls = cpVal > 50 ? 'pos' : cpVal < -50 ? 'neg' : 'draw';
-    }
-    const bestMoveSan = r.pvSan && r.pvSan.length ? r.pvSan[0] : (r.pv && r.pv.length ? r.pv[0] : '?');
-    const pvStr = (r.pvSan || []).slice(0, 10).join(' ');
-    html += `<div class="line-item">
-      <div class="line-head">
-        <span class="line-move">${bestMoveSan}</span>
-        <span class="line-eval ${evalCls}">${evalStr}</span>
+        <div class="menu-footer"><span>Rules · SAN · Castling · En passant · Promotion</span><span>v5 · Android content:// loader</span></div>
       </div>
-      <div class="line-depth">深度 ${r.depth} · 第 ${r.multipv} 选择</div>
-      ${pvStr ? `<div class="line-pv" title="${pvStr}">${pvStr}</div>` : ''}
-    </div>`;
-  }
-  panel.innerHTML = html;
-}
+    </div>
+  </div>
+</section>
 
-/* =========================================================================
-   11. PeerJS 联机
-   ========================================================================= */
-const Net = { peer: null, conn: null, room: null, isHost: false, connected: false, pendingDraw: false, connectTimer: null };
+<section id="game" class="screen">
+<div class="wrap game-grid">
+  <div class="board-wrap">
+    <div class="evalbar" id="evalBar"><div class="eval-white" id="evalWhite"></div><div class="eval-label" id="evalLabel">0.0</div></div>
+    <div class="board-shell"><canvas id="board"></canvas></div>
+  </div>
+  <aside class="side">
+    <div class="panel span2"><div class="status" id="status">准备中</div><div class="sub" id="status2"></div><div class="sub"><span id="engineDot" class="engine-dot"></span><span id="engineStatus">引擎未加载</span></div></div>
+    <div class="panel"><label>被吃棋子</label><div class="captured" id="captured"></div></div>
+    <div class="panel"><label>着法</label><div class="moves" id="moveList"></div></div>
+    <div class="panel span2" id="analysisPanel" style="display:none"><label>Stockfish 19 · MultiPV 3</label><div class="analysis" id="analysis"></div></div>
+    <div class="panel span2"><div class="toolbar">
+      <button class="btn" id="undoBtn">悔棋</button><button class="btn" id="flipBtn">翻转</button>
+      <button class="btn" id="drawBtn">和棋</button><button class="btn danger" id="resignBtn">认输</button>
+      <button class="btn" id="menuBtn">返回菜单</button>
+    </div><div class="toolbar" id="replayControls" style="display:none;margin-top:10px">
+      <button class="btn" data-r="first">|◀</button><button class="btn" data-r="prev">◀</button><button class="btn" data-r="play">▶</button>
+      <button class="btn" data-r="next">▶</button><button class="btn" data-r="last">▶|</button>
+      <select id="replaySpeed"><option>.5</option><option selected>1</option><option>1.5</option><option>2</option></select>
+    </div></div>
+  </aside>
+</div>
+</section>
 
-const STUN_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun2.l.google.com:19302' },
-  { urls: 'stun:stun3.l.google.com:19302' },
-  { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:stun.xten.com:3478' },
-  { urls: 'stun:stun.sipgate.net:10000' },
-  { urls: 'stun:stun.ekiga.net:3478' },
+<section id="records" class="screen"><div class="wrap records">
+<div class="row" style="justify-content:space-between;margin-bottom:14px"><h2>对局记录</h2><button class="btn" id="recordsBack">返回</button></div>
+<div class="panel" id="recordsList"></div></div></section>
+
+<div id="promoModal" class="modal"><div class="modalbox panel"><h3>兵升变</h3><div class="promo" id="promoBtns"></div></div></div>
+<div id="dialog" class="modal"><div class="modalbox panel"><h3 id="dialogTitle">提示</h3><p id="dialogText"></p><div class="row" id="dialogActions"></div></div></div>
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { Chess } from 'https://cdn.jsdelivr.net/npm/chess.js@1.4.0/+esm';
+import * as PeerNS from 'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/+esm';
+const Peer = PeerNS.Peer || PeerNS.default;
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const PIECE={wp:'♙',wn:'♘',wb:'♗',wr:'♖',wq:'♕',wk:'♔',bp:'♟',bn:'♞',bb:'♝',br:'♜',bq:'♛',bk:'♚'};
+const VALUE={p:100,n:320,b:330,r:500,q:900,k:0};
+const DIFF=[
+  ['入门',-20,1],['初学',-10,2],['休闲',0,4],['普通',4,7],['进阶',8,10],['高手',13,13],['专家',17,16],['宗师',20,20]
 ];
+for(let i=0;i<DIFF.length;i++) $('#difficulty').insertAdjacentHTML('beforeend',`<option value="${i}">${i+1}. ${DIFF[i][0]}</option>`);
 
-function cleanupNet(){
-  if (Net.connectTimer){ clearTimeout(Net.connectTimer); Net.connectTimer = null; }
-  if (Net.conn){ try { Net.conn.close(); } catch(e){} }
-  if (Net.peer){ try { Net.peer.destroy(); } catch(e){} }
-  Net.peer = null; Net.conn = null; Net.connected = false; Net.pendingDraw = false;
+let chess=new Chess(), mode='local', human='w', orientation='w', selected=null, targets=[], lastMove=null;
+let gameStart=0, ended=false, currentRecord=null, replayIndex=0, replayTimer=null, replayMode=false;
+let peer=null,conn=null,host=false,room='',engine=null,analysisEngine=null,engineReady=false,engineBusy=false;
+let pendingPromotion=null, drawOfferPending=false, activeEngineKind='sf19-lite';
+
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2600)}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function updateMenuMeta(){const e=$('#recordCount');if(e)e.textContent=getRecords().length}
+function show(id){$$('.screen').forEach(x=>x.classList.remove('active'));$(id).classList.add('active')}
+function dialog(title,text,actions=[['确定',()=>closeDialog()]]){
+  $('#dialogTitle').textContent=title;$('#dialogText').textContent=text;const a=$('#dialogActions');a.innerHTML='';
+  actions.forEach(([txt,fn,cls])=>{let b=document.createElement('button');b.className='btn '+(cls||'');b.textContent=txt;b.onclick=fn;a.appendChild(b)});
+  $('#dialog').classList.add('show');
 }
+function closeDialog(){ $('#dialog').classList.remove('show') }
 
-function bindConn(conn){
-  Net.conn = conn;
-  conn.on('open', () => {
-    Net.connected = true;
-    if (Net.connectTimer){ clearTimeout(Net.connectTimer); Net.connectTimer = null; }
-    toast('已连接对手！');
-    startGame('online', { color: Net.isHost ? 'w' : 'b' });
-  });
-  conn.on('data', data => {
-    let msg = data;
-    if (typeof data === 'string'){ try { msg = JSON.parse(data); } catch(e){ return; } }
-    handleNetMessage(msg);
-  });
-  conn.on('close', () => {
-    Net.connected = false;
-    if (Game.mode === 'online' && Game.running) toast('对手已断开连接');
-  });
-  conn.on('error', err => {
-    console.warn('[PeerJS] conn error', err);
-    toast('连接出错：' + (err.type || err.message || '未知'));
-  });
+$$('.card[data-mode]').forEach(b=>b.onclick=()=>{
+  mode=b.dataset.mode; $('#setup').style.display='block';
+  $('#setupTitle').textContent=mode==='ai'?'AI 对局设置':mode==='lan'?'联机房间设置':'本地对局';
+  $('#lanSetup').style.display=mode==='lan'?'grid':'none';
+  $('#diffField').style.display=mode==='ai'?'grid':'none';$('#engineField').style.display=mode==='ai'?'grid':'none';
+  $('#colorField').style.display=mode==='ai'?'grid':'none';$('#engineTestRow').style.display=mode==='ai'?'flex':'none';
+  $$('.card[data-mode]').forEach(x=>x.style.borderColor=x===b?'rgba(229,189,99,.72)':'');
+});
+$('#cancelSetup').onclick=()=>{$('#setup').style.display='none';$$('.card[data-mode]').forEach(x=>x.style.borderColor='')};
+$('#engineChoice').onchange=()=>{stopEngines();$('#testText').textContent='引擎选择已改变，可重新自检';$('#testDot').className='engine-dot'};
+$('#engineTestBtn').onclick=async()=>{
+  const b=$('#engineTestBtn'),t=$('#testText'),d=$('#testDot'),choice=$('#engineChoice').value;
+  b.disabled=true;d.className='engine-dot';$('#engineDiag').style.display='block';$('#engineDiag').open=true;
+  try{
+    stopEngines();activeEngineKind=choice;
+    if(choice==='builtin'){t.textContent='当前选择内置 AI，不需要加载 Stockfish';d.className='engine-dot ok';$('#engineDiagLog').textContent='内置 AI 已可用。';return}
+    t.textContent='正在测试 Stockfish 19…';const ok=await ensureEngine(false);
+    $('#engineDiagLog').textContent=(lastEngineDiagnostics.length?lastEngineDiagnostics:['无诊断信息']).join('\n');
+    if(ok){t.textContent=`自检通过：${engine?._buildLabel||'Stockfish 19'} · ${engine?._loaderRoute||'Worker'}`;d.className='engine-dot ok'}
+    else{t.textContent='Stockfish 19 未启动；请展开诊断日志查看失败阶段';d.className='engine-dot bad'}
+  }finally{b.disabled=false}
+};
+$('#startBtn').onclick=async()=>{
+  if(mode==='ai'){human=$('#playerColor').value; if(human==='r')human=Math.random()<.5?'w':'b';orientation=human;activeEngineKind=$('#engineChoice').value}
+  if(mode==='lan'){room=$('#roomCode').value.trim();if(!/^\d{3}$/.test(room)){toast('请输入 3 位房间号');return}}
+  startGame();
+  if(mode==='lan') await startPeer(room);
+  if(mode==='ai' && activeEngineKind!=='builtin'){await ensureEngine(false); maybeAITurn()}
+};
+function startGame(){
+  chess=new Chess();selected=null;targets=[];lastMove=null;ended=false;replayMode=false;currentRecord=null;gameStart=Date.now();
+  $('#analysisPanel').style.display='none';$('#replayControls').style.display='none';$('#undoBtn').style.display='inline-block';
+  $('#drawBtn').style.display='inline-block';$('#resignBtn').style.display='inline-block';show('#game');updateAll();settleBoardLayout();
+  if(mode==='ai'&&human==='b') setTimeout(maybeAITurn,250);
 }
+$('#menuBtn').onclick=()=>{stopReplay();stopEngines();closePeer();show('#menu')};
+$('#recordsBack').onclick=()=>show('#menu');
+$('#recordsBtn').onclick=()=>{renderRecords();show('#records')};
 
-function handleNetMessage(msg){
-  if (!msg || !msg.type) return;
-  if (msg.type === 'move'){
-    const c = Game.chess;
-    if (!c || !Game.running || c.turn === Game.playerColor) return;
-    const mv = c.findMove(msg.from, msg.to, msg.promo) || c.findMove(msg.from, msg.to, null);
-    if (mv) commitMove(mv, true);
-    return;
+const board=$('#board'),ctx=board.getContext('2d');
+function resizeBoard(){
+  const shell=board.parentElement;
+  const r=shell.getBoundingClientRect();
+  const vv=window.visualViewport;
+  const viewportW=Math.max(240,Math.floor(vv?.width||document.documentElement.clientWidth||innerWidth));
+  const reserved=matchMedia('(max-width:860px)').matches?54:0;
+  const cssSize=Math.max(220,Math.min(r.width||viewportW,viewportW-reserved));
+  shell.style.width=cssSize+'px';
+  shell.style.height=cssSize+'px';
+  shell.style.maxWidth='100%';
+  const dpr=Math.max(1,Math.min(3,devicePixelRatio||1));
+  board.style.width='100%';board.style.height='100%';
+  board.width=Math.round(cssSize*dpr);board.height=Math.round(cssSize*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);drawBoard()
+}
+function settleBoardLayout(){
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{resizeBoard();window.scrollTo(0,0)}))
+}
+addEventListener('resize',settleBoardLayout);
+window.visualViewport?.addEventListener('resize',settleBoardLayout);
+function sqToXY(sq){let f=sq.charCodeAt(0)-97,r=+sq[1]-1;if(orientation==='w')return [f,7-r];return [7-f,r]}
+function xyToSq(x,y){if(orientation==='w')return String.fromCharCode(97+x)+(8-y);return String.fromCharCode(104-x)+(y+1)}
+function drawBoard(){
+  const W=board.clientWidth,S=W/8;ctx.clearRect(0,0,W,W);
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+    const sq=xyToSq(x,y),light=(x+y)%2===0;ctx.fillStyle=light?'#d9c7a6':'#70543a';ctx.fillRect(x*S,y*S,S,S);
+    if(lastMove&&(sq===lastMove.from||sq===lastMove.to)){ctx.fillStyle='rgba(230,190,70,.38)';ctx.fillRect(x*S,y*S,S,S)}
+    if(sq===selected){ctx.fillStyle='rgba(246,215,111,.46)';ctx.fillRect(x*S,y*S,S,S)}
   }
-  if (msg.type === 'resign'){
-    Game.running = false;
-    toast('对手认输，你获胜！');
-    endGame({ over: true, result: Game.playerColor, reason: '对手认输' });
-    return;
-  }
-  if (msg.type === 'draw_offer'){
-    Net.pendingDraw = true;
-    askDrawResponse(() => {
-      Net.conn.send({ type: 'draw_accept' });
-      Game.running = false;
-      endGame({ over: true, result: 'draw', reason: '双方同意和棋' });
-    }, () => {
-      Net.conn.send({ type: 'draw_decline' });
-      toast('你拒绝了和棋请求');
-    });
-    return;
-  }
-  if (msg.type === 'draw_accept'){
-    Game.running = false;
-    endGame({ over: true, result: 'draw', reason: '双方同意和棋' });
-    return;
-  }
-  if (msg.type === 'draw_decline'){ toast('对方拒绝了和棋请求'); return; }
-  if (msg.type === 'rematch'){ rematch(); return; }
+  if(chess.isCheck()){const king=findKing(chess.turn());if(king){let [x,y]=sqToXY(king);let g=ctx.createRadialGradient((x+.5)*S,(y+.5)*S,3,(x+.5)*S,(y+.5)*S,S*.65);g.addColorStop(0,'rgba(255,40,55,.75)');g.addColorStop(1,'rgba(255,0,0,0)');ctx.fillStyle=g;ctx.fillRect(x*S,y*S,S,S)}}
+  for(const m of targets){let [x,y]=sqToXY(m.to);ctx.beginPath();ctx.arc((x+.5)*S,(y+.5)*S,m.captured?S*.34:S*.11,0,Math.PI*2);
+    if(m.captured){ctx.strokeStyle='rgba(185,30,40,.8)';ctx.lineWidth=4;ctx.stroke()}else{ctx.fillStyle='rgba(20,20,20,.35)';ctx.fill()}}
+  const b=chess.board();
+  for(let rank=0;rank<8;rank++)for(let file=0;file<8;file++){const p=b[rank][file];if(!p)continue;const sq=String.fromCharCode(97+file)+(8-rank),[x,y]=sqToXY(sq);
+    ctx.save();ctx.font=`${S*.72}px "Segoe UI Symbol","Noto Sans Symbols 2",serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';
+    ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=5;ctx.lineWidth=Math.max(1.2,S*.018);ctx.strokeStyle=p.color==='w'?'#4b4032':'#050505';ctx.fillStyle=p.color==='w'?'#fffaf0':'#171717';
+    const glyph=PIECE[p.color+p.type];ctx.strokeText(glyph,(x+.5)*S,(y+.53)*S);ctx.fillText(glyph,(x+.5)*S,(y+.53)*S);ctx.restore()}
+  ctx.font=`${Math.max(9,S*.12)}px system-ui`;ctx.fillStyle='rgba(0,0,0,.55)';
+  for(let i=0;i<8;i++){ctx.fillText(orientation==='w'?String.fromCharCode(97+i):String.fromCharCode(104-i),i*S+4,W-4)}
 }
-
-function askDrawResponse(onAccept, onDecline){
-  const box = $('#modalBox');
-  box.innerHTML = `
-    <h3>对方提议和棋</h3>
-    <div style="color:#8b93a7;font-size:13px;margin-bottom:18px">是否同意和棋？</div>
-    <div class="actions" style="margin-top:0">
-      <button class="btn primary" id="dYes">同意和棋</button>
-      <button class="btn" id="dNo">拒绝</button>
-    </div>`;
-  $('#modal').classList.add('active');
-  $('#dYes').onclick = () => { $('#modal').classList.remove('active'); onAccept(); };
-  $('#dNo').onclick = () => { $('#modal').classList.remove('active'); onDecline(); };
+function findKing(c){for(const row of chess.board())for(const p of row||[]){if(p&&p.type==='k'&&p.color===c)return p.square}return null}
+board.addEventListener('click',async e=>{
+  if(ended||replayMode||engineBusy)return;
+  if(mode==='ai'&&chess.turn()!==human)return;
+  if(mode==='lan'&&(!conn||chess.turn()!==human))return;
+  const r=board.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/(r.width/8)),y=Math.floor((e.clientY-r.top)/(r.height/8)),sq=xyToSq(x,y);
+  const p=chess.get(sq);
+  if(selected){
+    const candidates=targets.filter(m=>m.to===sq);
+    if(candidates.length){
+      if(candidates.some(m=>m.promotion)){pendingPromotion={from:selected,to:sq};showPromotion();return}
+      makeMove({from:selected,to:sq});return;
+    }
+  }
+  if(p&&p.color===chess.turn()){selected=sq;targets=chess.moves({square:sq,verbose:true});drawBoard()} else {selected=null;targets=[];drawBoard()}
+});
+function showPromotion(){
+  const box=$('#promoBtns');box.innerHTML='';
+  for(const p of ['q','r','b','n']){let b=document.createElement('button');b.className='btn';b.textContent=PIECE[chess.turn()+p];b.onclick=()=>{let m={...pendingPromotion,promotion:p};pendingPromotion=null;$('#promoModal').classList.remove('show');makeMove(m)};box.appendChild(b)}
+  $('#promoModal').classList.add('show')
 }
+function makeMove(spec,remote=false){
+  const fenBefore=chess.fen();let m;
+  try{m=chess.move(spec)}catch{return false}if(!m)return false;
+  lastMove={from:m.from,to:m.to};selected=null;targets=[];
+  const item={san:m.san,uci:m.from+m.to+(m.promotion||''),fenBefore,fenAfter:chess.fen()};
+  if(!currentRecord)currentRecord={mode,startFen:new Chess().fen(),moves:[],startedAt:gameStart,playerColor:human};
+  currentRecord.moves.push(item);
+  if(mode==='lan'&&!remote&&conn?.open)conn.send({t:'move',uci:item.uci,fen:item.fenAfter});
+  updateAll();checkEnd();
+  if(!ended&&mode==='ai')setTimeout(maybeAITurn,120);
+  return true;
+}
+function updateAll(){
+  drawBoard();renderMoves();renderCaptured();
+  const turn=chess.turn()==='w'?'白方':'黑方';let s=`${turn}走棋`;if(chess.isCheck())s+=' · 将军';
+  if(replayMode)s=`回放 · ${replayIndex}/${currentRecord.moves.length}`;
+  $('#status').textContent=s;
+  $('#status2').textContent=`${modeName(mode)} · 回合 ${Math.ceil((chess.history().length+1)/2)}${mode==='ai'?' · '+DIFF[+$('#difficulty').value][0]:''}`;
+}
+function modeName(m){return ({local:'本地双人',ai:'人机对战',lan:'联机',replay:'回放'})[m]||m}
+function renderMoves(){
+  const list=$('#moveList');list.innerHTML='';const h=currentRecord?.moves||[];
+  for(let i=0;i<h.length;i+=2){let n=document.createElement('div');n.className='n';n.textContent=(i/2+1)+'.';list.appendChild(n);
+    for(let j=0;j<2;j++){let k=i+j;if(k<h.length){let b=document.createElement('button');b.textContent=h[k].san;b.onclick=()=>{if(replayMode)jumpReplay(k+1)};list.appendChild(b)}else list.appendChild(document.createElement('div'))}}
+  list.scrollTop=list.scrollHeight
+}
+function renderCaptured(){
+  const init={w:{p:8,n:2,b:2,r:2,q:1},b:{p:8,n:2,b:2,r:2,q:1}},now={w:{p:0,n:0,b:0,r:0,q:0},b:{p:0,n:0,b:0,r:0,q:0}};
+  for(const row of chess.board())for(const p of row){if(p&&p.type!=='k')now[p.color][p.type]++}
+  let out='';for(const c of ['w','b'])for(const t of ['q','r','b','n','p'])for(let i=0;i<init[c][t]-now[c][t];i++)out+=PIECE[c+t];
+  $('#captured').textContent=out||'—'
+}
+function checkEnd(){
+  if(!chess.isGameOver())return;
+  let result='1/2-1/2',reason='和棋';
+  if(chess.isCheckmate()){result=chess.turn()==='w'?'0-1':'1-0';reason='将杀'}
+  else if(chess.isStalemate())reason='逼和';
+  else if(chess.isThreefoldRepetition())reason='三次重复局面';
+  else if(chess.isInsufficientMaterial())reason='子力不足';
+  else if(chess.isDrawByFiftyMoves())reason='五十回合规则';
+  finish(result,reason,true)
+}
+function finish(result,reason,save=true){
+  if(ended)return;ended=true;if(currentRecord){currentRecord.result=result;currentRecord.reason=reason;currentRecord.duration=Date.now()-gameStart;currentRecord.timestamp=Date.now();
+    if(save){let a=getRecords();a.unshift(currentRecord);localStorage.setItem('aurumChessRecords',JSON.stringify(a.slice(0,200)));updateMenuMeta()}}
+  updateAll();dialog('对局结束',`${result} · ${reason}`,[['确定',closeDialog]])
+}
+function getRecords(){try{return JSON.parse(localStorage.getItem('aurumChessRecords')||'[]')}catch{return[]}}
+function renderRecords(){
+  const a=getRecords(),el=$('#recordsList');el.innerHTML='';
+  if(!a.length){el.innerHTML='<div class="empty">暂无对局记录</div>';return}
+  a.forEach((r,i)=>{let d=document.createElement('div');d.className='record';d.innerHTML=`<div><b>${r.result||'—'} · ${r.reason||''}</b><div class="meta">${modeName(r.mode)} · ${r.moves?.length||0} 半回合 · ${fmtTime(r.duration||0)} · ${new Date(r.timestamp).toLocaleString()}</div></div><span class="badge">回放</span>`;d.onclick=()=>openReplay(i);el.appendChild(d)})
+}
+function fmtTime(ms){let s=Math.round(ms/1000);return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function openReplay(i){
+  const r=getRecords()[i];if(!r)return;mode='replay';replayMode=true;currentRecord=r;replayIndex=0;orientation='w';ended=false;
+  chess=new Chess(r.startFen||undefined);lastMove=null;show('#game');$('#analysisPanel').style.display='block';$('#replayControls').style.display='flex';
+  $('#undoBtn').style.display='none';$('#drawBtn').style.display='none';$('#resignBtn').style.display='none';settleBoardLayout();updateAll();ensureEngine(true).then(analyzePosition)
+}
+function jumpReplay(n){
+  stopReplay();n=Math.max(0,Math.min(currentRecord.moves.length,n));replayIndex=n;
+  if(n===0){chess=new Chess(currentRecord.startFen||undefined);lastMove=null}
+  else{let item=currentRecord.moves[n-1];if(item.fenAfter){chess=new Chess(item.fenAfter)}else{chess=new Chess(currentRecord.startFen||undefined);for(let k=0;k<n;k++)chess.move(currentRecord.moves[k].san)};lastMove=parseUci(item.uci)}
+  updateAll();analyzePosition()
+}
+function parseUci(u){return u?{from:u.slice(0,2),to:u.slice(2,4)}:null}
+function stopReplay(){clearInterval(replayTimer);replayTimer=null}
+$$('#replayControls [data-r]').forEach(b=>b.onclick=()=>{
+  const a=b.dataset.r;if(a==='first')jumpReplay(0);if(a==='prev')jumpReplay(replayIndex-1);if(a==='next')jumpReplay(replayIndex+1);if(a==='last')jumpReplay(currentRecord.moves.length);
+  if(a==='play'){if(replayTimer){stopReplay();b.textContent='▶'}else{b.textContent='Ⅱ';replayTimer=setInterval(()=>{if(replayIndex>=currentRecord.moves.length){stopReplay();b.textContent='▶'}else jumpReplay(replayIndex+1)},1000/(+$('#replaySpeed').value))}}
+});
+addEventListener('keydown',e=>{if(!replayMode)return;if(e.key==='ArrowLeft')jumpReplay(replayIndex-1);if(e.key==='ArrowRight')jumpReplay(replayIndex+1);if(e.key==='Home')jumpReplay(0);if(e.key==='End')jumpReplay(currentRecord.moves.length);if(e.code==='Space'){e.preventDefault();$('#replayControls [data-r=play]').click()}});
 
-function openOnlinePanel(){
-  const box = $('#modalBox');
-  box.innerHTML = `
-    <h3>局域网联机（PeerJS + STUN）</h3>
-    <div class="hint">
-      使用 PeerJS 公共信令服务器 + 多个公共 STUN 服务器穿透 NAT。<br>
-      <b>无需 TURN 中继</b>，适合同一局域网或普通家庭网络。<br>
-      双方输入相同房间号即可联机。
-    </div>
-    <div class="field">
-      <label>房间号（3 位数字）</label>
-      <input id="roomInput" maxlength="3" inputmode="numeric" placeholder="例如 472" style="text-align:center;font-size:20px;letter-spacing:8px">
-    </div>
-    <div class="actions">
-      <button class="btn primary" id="btnHost">创建房间</button>
-      <button class="btn" id="btnJoin">加入房间</button>
-      <button class="btn" id="oClose">取消</button>
-    </div>
-    <div id="netDebug" style="margin-top:12px;font-size:11px;color:#6b7280;line-height:1.6"></div>`;
-  $('#modal').classList.add('active');
-  $('#oClose').onclick = () => { $('#modal').classList.remove('active'); cleanupNet(); };
+$('#flipBtn').onclick=()=>{orientation=orientation==='w'?'b':'w';drawBoard()};
+$('#undoBtn').onclick=()=>{
+  if(ended||mode==='lan')return;if(!currentRecord?.moves.length)return;
+  let n=mode==='ai'?2:1;while(n--&&currentRecord.moves.length){chess.undo();currentRecord.moves.pop()}lastMove=currentRecord.moves.length?parseUci(currentRecord.moves.at(-1).uci):null;ended=false;updateAll()
+};
+$('#resignBtn').onclick=()=>dialog('确认认输','认输后本局立即结束。',[['取消',closeDialog],['认输',()=>{closeDialog();if(mode==='lan')conn?.send({t:'resign'});finish(chess.turn()==='w'?'0-1':'1-0','认输')} ,'danger']]);
+$('#drawBtn').onclick=()=>{
+  if(mode==='lan'){if(conn?.open){conn.send({t:'drawOffer'});drawOfferPending=true;toast('已发送和棋请求')}else toast('尚未连接')}
+  else dialog('提议和棋','本地/人机模式将直接以和棋结束。',[['取消',closeDialog],['同意和棋',()=>{closeDialog();finish('1/2-1/2','协议和棋')}]])
+};
 
-  const getRoom = () => {
-    const v = ($('#roomInput').value || '').trim();
-    if (!/^\d{3}$/.test(v)){ toast('请输入 3 位数字房间号'); return null; }
-    return v;
-  };
+async function maybeAITurn(){
+  if(mode!=='ai'||ended||chess.turn()===human)return;
+  engineBusy=true;updateAll();
+  let uci=null;
+  try{
+    if(activeEngineKind!=='builtin'&&engineReady)uci=await askBestMove(chess.fen());
+    if(!uci)uci=builtinBestMove();
+  }catch(e){console.warn(e);uci=builtinBestMove();setEngineStatus('Stockfish 19 失败，已切换内置 AI','bad')}
+  if(uci){makeMove({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||undefined})}
+  engineBusy=false;updateAll()
+}
+function builtinBestMove(){
+  const moves=chess.moves({verbose:true});if(!moves.length)return null;const level=+$('#difficulty').value,depth=level<3?1:level<6?2:3;
+  let scored=moves.map(m=>{chess.move(m);let s=-negamax(depth-1,-1e9,1e9);chess.undo();s+=Math.random()*(8-level)*70;return [m,s]}).sort((a,b)=>b[1]-a[1]);
+  let pick=scored[Math.min(scored.length-1,Math.floor(Math.random()*Math.max(1,5-level/2)))][0];return pick.from+pick.to+(pick.promotion||'')
+}
+function negamax(d,a,b){
+  if(chess.isCheckmate())return -999999;if(chess.isDraw())return 0;if(d<=0)return staticEval()*(chess.turn()==='w'?1:-1);
+  let best=-1e9;for(const m of chess.moves({verbose:true})){chess.move(m);let v=-negamax(d-1,-b,-a);chess.undo();if(v>best)best=v;if(v>a)a=v;if(a>=b)break}return best
+}
+function staticEval(){let s=0;for(const row of chess.board())for(const p of row)if(p)s+=(p.color==='w'?1:-1)*VALUE[p.type];return s}
 
-  const peerOpts = () => ({
-    debug: 1,
-    config: { iceServers: STUN_SERVERS, sdpSemantics: 'unified-plan' },
+const SF_VERSION='19.0.0';
+const SF_CDN_ROOTS=[
+  `https://cdn.jsdelivr.net/npm/stockfish@${SF_VERSION}/bin`,
+  `https://fastly.jsdelivr.net/npm/stockfish@${SF_VERSION}/bin`,
+  `https://gcore.jsdelivr.net/npm/stockfish@${SF_VERSION}/bin`,
+  `https://unpkg.com/stockfish@${SF_VERSION}/bin`
+];
+let lastEngineDiagnostics=[];
+function diag(msg){
+  const line=`[${new Date().toLocaleTimeString()}] ${msg}`;lastEngineDiagnostics.push(line);console.log('[SF19]',msg);
+  const el=$('#engineDiagLog');if(el)el.textContent=lastEngineDiagnostics.join('\n')
+}
+function setEngineStatus(t,state='',detail=''){
+  $('#engineStatus').textContent=t;$('#engineDot').className='engine-dot '+state;
+  const me=$('#menuEngineStatus'),md=$('#menuEngineDot'),det=$('#menuEngineDetail');
+  if(me)me.textContent=t;if(md)md.className='engine-dot '+state;if(det)det.textContent=detail||''
+}
+function withTimeout(promise,ms,label){
+  let id;const timeout=new Promise((_,rej)=>id=setTimeout(()=>rej(new Error(label+' 超时')),ms));
+  return Promise.race([promise,timeout]).finally(()=>clearTimeout(id))
+}
+async function fetchChecked(url,type='text'){
+  const r=await withTimeout(fetch(url,{mode:'cors',cache:'no-store',credentials:'omit'}),18000,'网络请求');
+  if(!r.ok)throw new Error(`${r.status} ${r.statusText} · ${url.split('/').pop()}`);
+  return type==='blob'?r.blob():type==='json'?r.json():r.text()
+}
+function sfStem(kind){return kind==='asm'?'stockfish-19-asm':kind==='full'?'stockfish-19-single':'stockfish-19-lite-single'}
+function isOpaqueLocal(){
+  return location.origin==='null'||location.protocol==='file:'||location.protocol==='content:';
+}
+function localBuildCandidates(kind){
+  if(isOpaqueLocal())return [];
+  const stem=sfStem(kind),pairs=[];
+  for(const dir of ['./','./stockfish/','./engine/'])pairs.push({
+    jsUrl:new URL(dir+stem+'.js',location.href).href,
+    wasmUrl:kind==='asm'?null:new URL(dir+stem+'.wasm',location.href).href,
+    label:`${stem} · 同源 ${dir}`,local:true,route:'同源 Worker'
   });
-
-  $('#btnHost').onclick = () => {
-    const room = getRoom();
-    if (!room) return;
-    cleanupNet();
-    Net.room = room; Net.isHost = true;
-    Net.peer = new Peer('chess-' + room, peerOpts());
-    Net.peer.on('open', () => {
-      toast('房间 ' + room + ' 已创建，等待对手加入…');
-      $('#modal').classList.remove('active');
-    });
-    Net.peer.on('connection', conn => {
-      if (Net.connected){ conn.close(); return; }
-      bindConn(conn);
-    });
-    Net.peer.on('error', err => {
-      if (err.type === 'unavailable-id') toast('房间号已被占用，请换一个');
-      else if (err.type === 'network') toast('信令服务器连接失败');
-      else toast('连接服务器失败：' + err.type);
-      cleanupNet();
-    });
-    Net.connectTimer = setTimeout(() => {
-      if (!Net.connected) toast('等待超时，请确认对方已输入相同房间号', 3500);
-    }, 30000);
-  };
-
-  $('#btnJoin').onclick = () => {
-    const room = getRoom();
-    if (!room) return;
-    cleanupNet();
-    Net.room = room; Net.isHost = false;
-    Net.peer = new Peer(peerOpts());
-    Net.peer.on('open', () => {
-      const conn = Net.peer.connect('chess-' + room, { reliable: true });
-      bindConn(conn);
-      toast('正在连接房间 ' + room + '…');
-      $('#modal').classList.remove('active');
-    });
-    Net.peer.on('error', err => {
-      if (err.type === 'peer-unavailable') toast('房间不存在或对方未创建', 3000);
-      else if (err.type === 'network') toast('信令服务器连接失败');
-      else toast('连接失败：' + err.type);
-      cleanupNet();
-    });
-    Net.connectTimer = setTimeout(() => {
-      if (!Net.connected) toast('连接超时，可能受限于网络环境', 4000);
-    }, 20000);
-  };
+  return pairs
 }
-
-/* =========================================================================
-   12. WebGPU 背景
-   ========================================================================= */
-async function initBackground(){
-  const canvas = $('#bg');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  let W = window.innerWidth, H = window.innerHeight;
-  canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
-  window.addEventListener('resize', () => {
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = Math.floor(W * dpr); canvas.height = Math.floor(H * dpr);
-  });
-  if (!navigator.gpu){ fallbackBG(canvas); return; }
-  try {
-    const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) throw new Error('no adapter');
-    const device = await adapter.requestDevice();
-    const ctx = canvas.getContext('webgpu');
-    if (!ctx) throw new Error('no webgpu context');
-    const format = navigator.gpu.getPreferredCanvasFormat();
-    ctx.configure({ device, format, alphaMode: 'opaque' });
-    const wgsl = `
-      struct U { t: f32, w: f32, h: f32, p: f32 };
-      @group(0) @binding(0) var<uniform> u : U;
-      @vertex fn vs(@builtin(vertex_index) i : u32) -> @builtin(position) vec4<f32> {
-        var pos = array<vec2<f32>, 3>(vec2<f32>(-1.0,-1.0), vec2<f32>(3.0,-1.0), vec2<f32>(-1.0,3.0));
-        return vec4<f32>(pos[i], 0.0, 1.0);
+async function remoteBuildCandidates(kind){
+  const stem=sfStem(kind),out=[];
+  // npm 19.0.0 actually ships browser binaries under /bin/.
+  // Do not depend on data.jsdelivr manifest: content:// WebViews often block that API endpoint.
+  for(const root of SF_CDN_ROOTS){
+    const host=new URL(root).hostname;
+    out.push({
+      jsUrl:`${root}/${stem}.js`,
+      wasmUrl:kind==='asm'?null:`${root}/${stem}.wasm`,
+      label:`${stem} · ${host}`,
+      local:false,
+      route:'CDN /bin Worker'
+    });
+  }
+  return out
+}
+function attachWorkerMeta(w,build,route,urls=[]){w._buildLabel=build.label;w._loaderRoute=route;w._urls=urls;return w}
+function directWorker(build){
+  const url=build.wasmUrl?`${build.jsUrl}#${build.wasmUrl}`:build.jsUrl;
+  diag('尝试同源直接 Worker：'+build.jsUrl);return attachWorkerMeta(new Worker(url),build,'同源 Worker')
+}
+function proxyWorker(build){
+  // 远程脚本不能可靠地直接作为 Worker URL；用同源 Blob Worker + importScripts 代理。
+  // Stockfish.js 从 self.location.hash 读取 WASM 地址，所以将远程 WASM URL 放入代理 Worker 的 hash。
+  const code=`try{importScripts(${JSON.stringify(build.jsUrl)});}catch(e){postMessage('__AURUM_BOOT_ERROR__'+(e&&e.stack?e.stack:(e&&e.message?e.message:String(e))))}`;
+  const boot=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+  const url=build.wasmUrl?`${boot}#${build.wasmUrl}`:boot;
+  diag('尝试 CDN 代理 Worker：'+build.label);return attachWorkerMeta(new Worker(url),build,build.route||'CDN 代理 Worker',[boot])
+}
+async function inlineScriptWorker(build){
+  // 兼容路线 A：只把 JS 下载到 Blob。WASM 仍保持 HTTPS URL。
+  // 这对 file:// 很重要：避免 Blob Worker 再跨 opaque-origin 读取第二个 Blob URL。
+  diag('尝试 JS Blob + HTTPS WASM：'+build.label);
+  const jsText=await fetchChecked(build.jsUrl,'text');
+  if(!jsText || jsText.length<1000 || /^\s*</.test(jsText))throw new Error('引擎 JS 响应异常（可能返回了 HTML 错误页）');
+  const jsBlob=URL.createObjectURL(new Blob([jsText],{type:'text/javascript'}));
+  try{
+    const w=new Worker(build.wasmUrl?`${jsBlob}#${build.wasmUrl}`:jsBlob);
+    return attachWorkerMeta(w,build,'JS Blob + HTTPS WASM',[jsBlob])
+  }catch(e){try{URL.revokeObjectURL(jsBlob)}catch{};throw e}
+}
+async function blobAllWorker(build){
+  // 最终路线：JS 与 WASM 都下载为 Blob。适合 CDN WASM fetch 被 CSP / MIME 干扰的环境。
+  diag('尝试完整 Blob 下载路线：'+build.label);
+  const jsText=await fetchChecked(build.jsUrl,'text');
+  if(!jsText || jsText.length<1000 || /^\s*</.test(jsText))throw new Error('引擎 JS 响应异常（可能返回了 HTML 错误页）');
+  const jsBlob=URL.createObjectURL(new Blob([jsText],{type:'text/javascript'}));let wasmBlob=null,w;
+  try{
+    if(build.wasmUrl){
+      const wb=await fetchChecked(build.wasmUrl,'blob');
+      const ab=await wb.arrayBuffer(),u=new Uint8Array(ab);
+      if(u.length<8 || u[0]!==0x00 || u[1]!==0x61 || u[2]!==0x73 || u[3]!==0x6d)throw new Error('WASM 响应不是有效 WebAssembly 文件');
+      wasmBlob=URL.createObjectURL(new Blob([ab],{type:'application/wasm'}))
+    }
+    w=new Worker(wasmBlob?`${jsBlob}#${wasmBlob}`:jsBlob);
+    return attachWorkerMeta(w,build,'完整 Blob Worker',[jsBlob,wasmBlob].filter(Boolean))
+  }catch(e){for(const u of [jsBlob,wasmBlob])if(u)try{URL.revokeObjectURL(u)}catch{};throw e}
+}
+function destroyWorker(w){if(!w)return;try{w.terminate()}catch{};for(const u of w._urls||[])try{URL.revokeObjectURL(u)}catch{}}
+function uciHandshake(w,label='Stockfish'){
+  return new Promise((res,rej)=>{
+    let gotUci=false,done=false;
+    const cleanup=()=>{clearTimeout(tm);w.removeEventListener('message',onMsg);w.removeEventListener('error',onErr);w.removeEventListener('messageerror',onMsgErr)};
+    const fail=e=>{if(done)return;done=true;cleanup();rej(e instanceof Error?e:new Error(String(e)))};
+    const ok=()=>{if(done)return;done=true;cleanup();res()};
+    const tm=setTimeout(()=>fail(new Error(gotUci?'isready 响应超时':'UCI 启动超时')),22000);
+    const onMsg=e=>{
+      const raw=e.data;
+      if(typeof raw==='string'&&raw.startsWith('__AURUM_BOOT_ERROR__'))return fail(new Error('Worker importScripts 失败：'+raw.slice(20)));
+      const lines=String(raw??'').split(/\r?\n/);
+      for(const line0 of lines){const line=line0.trim();if(!line)continue;
+        if(/^Stockfish\s/i.test(line))diag(label+'：'+line);
+        if(line==='uciok'){gotUci=true;diag(label+'：收到 uciok');try{w.postMessage('isready')}catch(e){return fail(e)}}
+        if(line==='readyok'){diag(label+'：收到 readyok');return ok()}
       }
-      fn hash(p: vec2<f32>) -> f32 { return fract(sin(dot(p, vec2<f32>(127.1,311.7))) * 43758.5453); }
-      @fragment fn fs(@builtin(position) fc : vec4<f32>) -> @location(0) vec4<f32> {
-        let res = vec2<f32>(u.w, u.h);
-        let uv = fc.xy / res;
-        let aspect = u.w / u.h;
-        let p = vec2<f32>((uv.x - 0.5) * aspect, uv.y - 0.5);
-        let t = u.t;
-        var col = vec3<f32>(0.043, 0.051, 0.070);
-        let c1 = vec2<f32>(cos(t * 0.31) * 0.42, sin(t * 0.23) * 0.30);
-        let c2 = vec2<f32>(cos(t * 0.19 + 2.1) * 0.38, sin(t * 0.27 + 1.2) * 0.32);
-        col += vec3<f32>(0.90,0.69,0.29) * smoothstep(0.75,0.0,length(p-c1)) * 0.16;
-        col += vec3<f32>(0.20,0.38,0.78) * smoothstep(0.80,0.0,length(p-c2)) * 0.14;
-        let g = abs(fract(uv * vec2<f32>(40.0*aspect, 40.0)) - 0.5);
-        col += vec3<f32>(0.10,0.11,0.14) * smoothstep(0.48,0.5,max(g.x,g.y)) * 0.55;
-        let cell = floor(uv * vec2<f32>(120.0*aspect, 120.0));
-        let rnd = hash(cell);
-        if (rnd > 0.9975) {
-          let b = (sin(t*2.0 + rnd*60.0)*0.5+0.5)*0.55+0.15;
-          col += vec3<f32>(b*0.9, b*0.85, b*0.7);
-        }
-        col *= 1.0 - length(p) * 0.62;
-        return vec4<f32>(col, 1.0);
-      }`;
-    const module = device.createShaderModule({ code: wgsl });
-    const pipeline = device.createRenderPipeline({
-      layout: 'auto',
-      vertex: { module, entryPoint: 'vs' },
-      fragment: { module, entryPoint: 'fs', targets: [{ format }] },
-      primitive: { topology: 'triangle-list' },
-    });
-    const uniformBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    const bindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [{ binding: 0, resource: { buffer: uniformBuf } }],
-    });
-    $('#verLine').textContent = 'v5.1 · WebGPU · 多引擎 · 回放修复';
-    const start = performance.now();
-    const data = new Float32Array(4);
-    (function frame(){
-      data[0] = (performance.now() - start) / 1000;
-      data[1] = canvas.width; data[2] = canvas.height;
-      device.queue.writeBuffer(uniformBuf, 0, data);
-      const enc = device.createCommandEncoder();
-      const pass = enc.beginRenderPass({
-        colorAttachments: [{
-          view: ctx.getCurrentTexture().createView(),
-          clearValue: { r: 0.04, g: 0.05, b: 0.07, a: 1 },
-          loadOp: 'clear', storeOp: 'store',
-        }],
-      });
-      pass.setPipeline(pipeline); pass.setBindGroup(0, bindGroup); pass.draw(3); pass.end();
-      device.queue.submit([enc.finish()]);
-      requestAnimationFrame(frame);
-    })();
-  } catch (e){
-    console.warn('[WebGPU] 回退 Canvas2D:', e);
-    fallbackBG(canvas);
-  }
-}
-
-function fallbackBG(canvas){
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  $('#verLine').textContent = 'v5.1 · Canvas2D · 多引擎 · 回放修复';
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const start = performance.now();
-  (function frame(){
-    const t = (performance.now() - start) / 1000;
-    const W = window.innerWidth, H = window.innerHeight;
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
-    const blobs = [
-      { x: W*(0.5+0.35*Math.cos(t*0.31)), y: H*(0.4+0.3*Math.sin(t*0.23)), r: Math.max(W,H)*0.45, c:'rgba(230,176,74,0.13)' },
-      { x: W*(0.5+0.35*Math.cos(t*0.19+2.1)), y: H*(0.6+0.3*Math.sin(t*0.27+1.2)), r: Math.max(W,H)*0.45, c:'rgba(50,100,200,0.13)' },
-    ];
-    for (const b of blobs){
-      const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
-      g.addColorStop(0, b.c); g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    }
-    requestAnimationFrame(frame);
-  })();
-}
-
-/* =========================================================================
-   13. 事件绑定
-   ========================================================================= */
-$$('[data-act]').forEach(btn => {
-  btn.onclick = () => {
-    const act = btn.dataset.act;
-    if (act === 'ai') openAISetup();
-    else if (act === 'local') startGame('local');
-    else if (act === 'online') openOnlinePanel();
-    else if (act === 'records') showRecords();
-  };
-});
-
-function openAISetup(){
-  const box = $('#modalBox');
-  let level = 3, color = 'w';
-  let engineId = selectedEngineId;
-
-  const renderEngineList = () => {
-    const el = $('#engineList');
-    if (!el) return;
-    el.innerHTML = SF_ENGINES.map(e => `
-      <div class="engine-item${e.id === engineId ? ' on' : ''}" data-eid="${e.id}">
-        <div class="engine-info">
-          <div class="engine-name">${e.name}${e.recommended ? ' ⭐' : ''}</div>
-          <div class="engine-desc">${e.desc}</div>
-          <div class="engine-meta">${e.size} · 强度：${e.strength}</div>
-        </div>
-        <div class="engine-badge">${e.id === engineId ? '已选' : '选择'}</div>
-      </div>`).join('');
-    el.querySelectorAll('.engine-item').forEach(item => {
-      item.onclick = () => {
-        engineId = item.dataset.eid;
-        renderEngineList();
-      };
-    });
-  };
-
-  box.innerHTML = `
-    <h3>人机对战</h3>
-    <div class="field">
-      <label>引擎选择</label>
-      <div class="engine-list" id="engineList"></div>
-    </div>
-    <div class="field" style="margin-top:16px">
-      <label>难度等级</label>
-      <div class="levels" id="lvlGrid">
-        ${AI_LEVELS.map((l, i) => `<div class="lvl${i === level ? ' on' : ''}" data-i="${i}"><b>${i + 1}</b>${l.name}</div>`).join('')}
-      </div>
-    </div>
-    <div class="field" style="margin-top:16px">
-      <label>执子颜色</label>
-      <div class="row">
-        <button class="btn" data-c="w" id="cw" style="justify-content:center">♔ 白方（先手）</button>
-        <button class="btn" data-c="b" id="cb" style="justify-content:center">♚ 黑方（后手）</button>
-      </div>
-    </div>
-    <div class="actions">
-      <button class="btn primary" id="aiStart">开始对局</button>
-      <button class="btn" id="aiClose">取消</button>
-    </div>
-    <div style="margin-top:14px;font-size:11.5px;color:#6b7280;line-height:1.7" id="sfInfo">
-      <span class="spin"></span>正在检查引擎…
-    </div>`;
-
-  $('#modal').classList.add('active');
-  renderEngineList();
-
-  box.querySelectorAll('.lvl').forEach(el => {
-    el.onclick = () => {
-      level = +el.dataset.i;
-      box.querySelectorAll('.lvl').forEach(x => x.classList.toggle('on', x === el));
     };
+    const onErr=e=>fail(new Error(e?.message||'Worker 启动错误'));
+    const onMsgErr=()=>fail(new Error('Worker messageerror'));
+    w.addEventListener('message',onMsg);w.addEventListener('error',onErr);w.addEventListener('messageerror',onMsgErr);
+    try{w.postMessage('uci')}catch(e){fail(e)}
+  })
+}
+async function testWorker(build,method){
+  let w=null;
+  try{
+    w=method==='direct'?directWorker(build):method==='proxy'?proxyWorker(build):method==='inline'?await inlineScriptWorker(build):await blobAllWorker(build);
+    await uciHandshake(w,build.label);diag(`成功：${build.label} · ${w._loaderRoute}`);return w
+  }catch(e){diag(`失败：${build.label} · ${method} · ${e.message||e}`);destroyWorker(w);throw e}
+}
+async function loadStockfish(kind='lite',keepDiagnostics=false){
+  if(!keepDiagnostics)lastEngineDiagnostics=[];
+  diag(`页面协议=${location.protocol}；origin=${location.origin}；WebAssembly=${typeof WebAssembly==='object'?'yes':'no'}；Worker=${typeof Worker==='function'?'yes':'no'}；crossOriginIsolated=${self.crossOriginIsolated===true}`);
+  if(isOpaqueLocal())diag('检测到 Android/file/content 本地档案环境：跳过 content:// 同源 Worker，直接使用 CORS 友好的 npm CDN /bin 构建。');
+  if(typeof Worker!=='function')throw new Error('浏览器不支持 Web Worker');
+  if(kind!=='asm'&&typeof WebAssembly!=='object')throw new Error('浏览器不支持 WebAssembly');
+  const candidates=[...localBuildCandidates(kind),...(await remoteBuildCandidates(kind))];let errors=[];
+  for(const build of candidates){
+    setEngineStatus('Stockfish 19 · 正在启动','','尝试：'+build.label);
+    const methods=build.local?['direct']:(isOpaqueLocal()?['inline','proxy','bloball']:['proxy','inline','bloball']);
+    for(const method of methods){
+      try{const w=await testWorker(build,method);setEngineStatus('Stockfish 19 · UCI 已就绪','ok',`${build.label} · ${w._loaderRoute}`);return w}
+      catch(e){errors.push(`${build.label}/${method}: ${e.message||e}`)}
+    }
+  }
+  throw new Error(errors.slice(-5).join('；')||'所有 Stockfish 19 加载路线均失败')
+}
+async function ensureEngine(forAnalysis=false){
+  if(forAnalysis&&analysisEngine)return true;if(!forAnalysis&&engine)return true;
+  let kind=forAnalysis?'lite':activeEngineKind==='sf19-full'?'full':activeEngineKind==='sf19-asm'?'asm':'lite',primaryError=null,w=null;
+  try{w=await loadStockfish(kind)}catch(e){primaryError=e;console.warn('Primary Stockfish 19 build failed:',e)}
+  if(!w&&kind!=='asm'){
+    try{diag('主 WASM 构建失败，开始 ASM-JS 最终兼容回退。');setEngineStatus('WASM 未启动 · 尝试 Stockfish 19 ASM','','ASM-JS 不依赖 WebAssembly');w=await loadStockfish('asm',true);w._asmFallback=true}
+    catch(e){console.warn('ASM fallback failed:',e);primaryError=new Error(`${primaryError?.message||'WASM 失败'}；ASM：${e.message||e}`)}
+  }
+  if(w){
+    if(forAnalysis){analysisEngine=w;setEngineStatus(w._asmFallback?'Stockfish 19 ASM 分析已就绪':'Stockfish 19 分析引擎已就绪','ok',`${w._buildLabel} · ${w._loaderRoute}`)}
+    else{engine=w;engineReady=true;configureEngine();setEngineStatus(w._asmFallback?'Stockfish 19 ASM 已就绪':'Stockfish 19 已就绪','ok',`${w._buildLabel} · ${w._loaderRoute}`)}
+    const dl=$('#engineDiagLog');if(dl)dl.textContent=lastEngineDiagnostics.join('\n');return true
+  }
+  engineReady=false;const msg=primaryError?.message||'未知加载错误';console.error('Stockfish 19 load failed:',primaryError);
+  setEngineStatus('Stockfish 19 加载失败 · 已启用内置 AI','bad',isOpaqueLocal()?'已尝试 jsDelivr/Fastly/Gcore/unpkg 的 npm /bin 构建；请查看诊断日志确认哪个 CDN 被当前 Android WebView 拦截':msg);
+  const dl=$('#engineDiagLog');if(dl)dl.textContent=lastEngineDiagnostics.join('\n')+'\n最终错误：'+msg;
+  if(forAnalysis)$('#analysis').innerHTML=`<div class="pv">分析引擎加载失败：${escapeHtml(msg)}<br>棋局回放仍可正常使用。</div>`;
+  return false
+}
+function configureEngine(){
+  if(!engine)return;const [name,skill,depth]=DIFF[+$('#difficulty').value];
+  // Stockfish 19 的 Skill Level 标准范围是 0..20。入门档通过较短思考时间削弱，不发送无效的负值。
+  engine.postMessage(`setoption name Skill Level value ${Math.max(0,Math.min(20,skill))}`)
+}
+function askBestMove(fen){
+  return new Promise((resolve,reject)=>{
+    const level=+$('#difficulty').value,w=engine,movetimes=[70,110,180,300,500,800,1300,2000],ms=movetimes[level]||500;
+    let timer=setTimeout(()=>{w.removeEventListener('message',on);try{w.postMessage('stop')}catch{};reject(new Error('engine timeout'))},Math.max(6000,ms+4000));
+    function on(e){const s=String(e.data||'');const m=s.match(/(?:^|\n)bestmove\s+(\S+)/);if(m){clearTimeout(timer);w.removeEventListener('message',on);resolve(m[1]&&m[1]!=='(none)'?m[1]:null)}}
+    w.addEventListener('message',on);w.postMessage('stop');w.postMessage(`position fen ${fen}`);w.postMessage(`go movetime ${ms}`)
+  })
+}
+async function analyzePosition(){
+  if(!replayMode)return;await ensureEngine(true);if(!analysisEngine)return;
+  const w=analysisEngine,fen=chess.fen();w.postMessage('stop');w.postMessage('setoption name MultiPV value 3');w.postMessage(`position fen ${fen}`);
+  const lines=new Map();
+  const on=e=>{let s=String(e.data||'');for(const line of s.split(/\r?\n/)){if(line.startsWith('info ')&&line.includes(' pv ')){
+      let dm=line.match(/\bdepth (\d+)/),mp=line.match(/\bmultipv (\d+)/),cp=line.match(/\bscore (cp|mate) (-?\d+)/),pv=line.match(/\bpv (.+)$/);
+      if(dm&&mp&&cp&&pv){lines.set(+mp[1],{depth:+dm[1],type:cp[1],v:+cp[2],pv:pv[1].split(' ').slice(0,20)});renderAnalysis(lines)}
+    }if(line.startsWith('bestmove ')){w.removeEventListener('message',on)}}};
+  w.addEventListener('message',on);w.postMessage('go depth 14')
+}
+function renderAnalysis(lines){
+  const el=$('#analysis');el.innerHTML='';let top=lines.get(1);if(top)setEval(scoreForWhite(top));
+  [...lines.entries()].sort((a,b)=>a[0]-b[0]).slice(0,3).forEach(([n,x])=>{let d=document.createElement('div');d.className='pv';d.innerHTML=`<b>#${n} ${formatScore(x)}</b> · depth ${x.depth}<br>${pvToSan(x.pv).join(' ')}`;el.appendChild(d)})
+}
+function scoreForWhite(x){if(x.type==='mate')return (x.v>0?10:-10)*(chess.turn()==='w'?1:-1);return (x.v/100)*(chess.turn()==='w'?1:-1)}
+function formatScore(x){if(x.type==='mate')return `${x.v>0?'M':'-M'}${Math.abs(x.v)}`;let v=x.v/100;return (v>=0?'+':'')+v.toFixed(2)}
+function setEval(v){let p=50+Math.tanh(v/4)*45;$('#evalWhite').style.height=p+'%';$('#evalLabel').textContent=Math.abs(v)>=9.9?'M':(v>=0?'+':'')+v.toFixed(1)}
+function pvToSan(pv){let c=new Chess(chess.fen()),out=[];for(const u of pv.slice(0,10)){try{let m=c.move({from:u.slice(0,2),to:u.slice(2,4),promotion:u[4]||undefined});if(!m)break;out.push(m.san)}catch{break}}return out}
+
+async function startPeer(code){
+  closePeer();setEngineStatus('正在连接 PeerJS…');const id='aurum-chess-'+code;
+  const opts={debug:1,config:{iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun.sipgate.net:3478'},{urls:'stun:global.stun.twilio.com:3478'}
+  ]}};
+  // 先尝试成为房主；ID 被占用则用随机 ID 加入该房间。
+  await new Promise(resolve=>{
+    peer=new Peer(id,opts);let settled=false;
+    const t=setTimeout(()=>{if(!settled){toast('连接超时：可能受 NAT / 防火墙限制');resolve()}},12000);
+    peer.on('open',()=>{host=true;human='w';orientation='w';setEngineStatus(`房间 ${code} 已创建，等待对方…`,'ok');settled=true;clearTimeout(t);resolve()});
+    peer.on('connection',c=>attachConn(c));
+    peer.on('error',err=>{
+      if(err.type==='unavailable-id'){try{peer.destroy()}catch{};peer=new Peer(undefined,opts);peer.on('open',()=>{host=false;human='b';orientation='b';conn=peer.connect(id,{reliable:true});attachConn(conn);settled=true;clearTimeout(t);resolve()});peer.on('error',e=>peerError(e))}
+      else peerError(err)
+    })
+  })
+}
+function peerError(err){
+  const map={'peer-unavailable':'房间不存在或房主尚未进入','network':'信令网络错误','server-error':'PeerJS 信令服务器错误','socket-error':'信令连接失败','webrtc':'WebRTC 建链失败'};
+  toast(map[err.type]||('联机错误：'+err.type));setEngineStatus(map[err.type]||'联机失败','bad')
+}
+function attachConn(c){
+  conn=c;c.on('open',()=>{setEngineStatus(`房间 ${room} 已连接 · 你执${human==='w'?'白':'黑'}`,'ok');toast('联机成功');updateAll()});
+  c.on('data',data=>{
+    if(data.t==='move'){makeMove({from:data.uci.slice(0,2),to:data.uci.slice(2,4),promotion:data.uci[4]||undefined},true)}
+    if(data.t==='resign')finish(human==='w'?'1-0':'0-1','对方认输');
+    if(data.t==='drawOffer')dialog('和棋请求','对方提出和棋。',[['拒绝',()=>{closeDialog();conn.send({t:'drawReply',ok:false})}],['同意',()=>{closeDialog();conn.send({t:'drawReply',ok:true});finish('1/2-1/2','协议和棋')} ,'primary']]);
+    if(data.t==='drawReply'){drawOfferPending=false;if(data.ok)finish('1/2-1/2','协议和棋');else toast('对方拒绝了和棋请求')}
   });
-  const setC = c => {
-    color = c;
-    $('#cw').classList.toggle('primary', c === 'w');
-    $('#cb').classList.toggle('primary', c === 'b');
-  };
-  setC('w');
-  $('#cw').onclick = () => setC('w');
-  $('#cb').onclick = () => setC('b');
-  $('#aiClose').onclick = () => $('#modal').classList.remove('active');
+  c.on('close',()=>{if(!ended)toast('联机已断开')});c.on('error',peerError)
+}
+function closePeer(){try{conn?.close()}catch{}try{peer?.destroy()}catch{}conn=peer=null}
+function stopEngines(){for(const w of [engine,analysisEngine])destroyWorker(w);engine=analysisEngine=null;engineReady=false}
 
-  const updateInfo = () => {
-    const el = $('#sfInfo');
-    if (!el) return;
-    if (sfState === 'ready'){
-      if (sfCurrentEngine && sfCurrentEngine.id === engineId){
-        el.innerHTML = '✅ 已加载：' + sfVersion;
-      } else {
-        el.innerHTML = '✅ 当前加载：' + (sfCurrentEngine ? sfCurrentEngine.name : 'Stockfish') + '<br>点击「开始对局」切换引擎';
-      }
-    } else if (sfState === 'loading'){
-      el.innerHTML = '<span class="spin"></span>引擎加载中…';
-    } else if (sfState === 'failed'){
-      el.innerHTML = '⚠ 引擎加载失败，将使用内置 AI';
-    } else {
-      el.innerHTML = '<span class="spin"></span>引擎未加载，开始对局时自动加载';
-    }
-  };
-  updateInfo();
-
-  $('#aiStart').onclick = async () => {
-    selectedEngineId = engineId;
-    const engine = SF_ENGINES.find(e => e.id === engineId);
-
-    if (engine && (!sfCurrentEngine || sfCurrentEngine.id !== engineId || sfState !== 'ready')){
-      $('#sfInfo').innerHTML = '<span class="spin"></span>正在加载 ' + engine.name + '…';
-      const ok = await loadEngine(engine);
-      if (!ok){
-        toast('引擎加载失败，将使用内置 AI', 2500);
-      }
-    }
-    $('#modal').classList.remove('active');
-    startGame('ai', { color, level });
-  };
+function bg(){
+  const c=$('#bg'),x=c.getContext('2d');let t=0;
+  function size(){let d=devicePixelRatio||1;c.width=innerWidth*d;c.height=innerHeight*d;x.setTransform(d,0,0,d,0,0)}size();addEventListener('resize',size);
+  (function loop(){t+=.006;let w=innerWidth,h=innerHeight;x.clearRect(0,0,w,h);x.fillStyle='#08090d';x.fillRect(0,0,w,h);
+    for(let i=0;i<5;i++){let px=w*(.18+.16*i)+Math.sin(t*(1+i*.1)+i)*100,py=h*(.2+.14*(i%3))+Math.cos(t*.8+i)*80,r=Math.max(w,h)*.32;
+      let g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,`rgba(${i%2?75:120},${i%2?54:82},${i%2?28:34},.10)`);g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,w,h)}
+    requestAnimationFrame(loop)})()
+}
+bg();updateMenuMeta();
+if(location.protocol==='file:'){
+  const h=$('#protocolHint');if(h)h.style.display='block';
+  const det=$('#menuEngineDetail');if(det)det.textContent='检测到 file://：建议用 GitHub Pages 或 localhost HTTP(S)，否则 Worker/WASM 可能被拦截';
 }
 
-boardCanvas.addEventListener('click', e => {
-  const rect = boardCanvas.getBoundingClientRect();
-  const sq = xyToSq(e.clientX - rect.left, e.clientY - rect.top, rect.width / 8);
-  if (sq >= 0) onSquareClick(sq);
-});
-boardCanvas.addEventListener('mousemove', e => {
-  const rect = boardCanvas.getBoundingClientRect();
-  const sq = xyToSq(e.clientX - rect.left, e.clientY - rect.top, rect.width / 8);
-  if (sq !== View.hover){ View.hover = sq; drawBoard(); }
-});
-boardCanvas.addEventListener('mouseleave', () => { View.hover = -1; drawBoard(); });
-boardCanvas.addEventListener('touchstart', e => {
-  if (e.touches.length !== 1) return;
-  const rect = boardCanvas.getBoundingClientRect();
-  const t = e.touches[0];
-  const sq = xyToSq(t.clientX - rect.left, t.clientY - rect.top, rect.width / 8);
-  if (sq >= 0){ e.preventDefault(); onSquareClick(sq); }
-}, { passive: false });
-
-$('#btnUndo').onclick = () => {
-  if (Game.replayMode) return toast('回放模式不支持悔棋');
-  if (Game.mode === 'online') return toast('联机模式不支持悔棋');
-  if (!Game.chess || !Game.moveHistorySnapshot.length || Game.thinking) return;
-  const c = Game.chess;
-  let steps = 1;
-  if (Game.mode === 'ai' && c.turn === Game.playerColor) steps = 2;
-  if (Game.mode === 'ai' && Game.moveHistorySnapshot.length < 2) return toast('无法悔棋');
-  for (let i = 0; i < steps; i++){
-    if (!c.history.length) break;
-    c.unmakeMove();
-    Game.moveSans.pop();
-    Game.moveHistorySnapshot.pop();
-  }
-  Game.running = true;
-  View.lastMove = null; View.selected = -1; View.legalTargets = [];
-  View.checkSq = c.inCheck(c.turn) ? c.kingSquare(c.turn) : -1;
-  renderMoveList(); renderCaptured(); drawBoard(); updateStatus();
-};
-
-$('#btnFlip').onclick = () => { View.flipped = !View.flipped; drawBoard(); };
-
-$('#btnDraw').onclick = () => {
-  if (Game.replayMode) return toast('回放模式不支持此操作');
-  if (!Game.running) return;
-  if (Game.mode === 'online'){
-    if (!Net.conn || !Net.conn.open) return toast('未连接对手');
-    Net.conn.send({ type: 'draw_offer' });
-    toast('和棋请求已发送，等待对方回应…');
-  } else {
-    const box = $('#modalBox');
-    box.innerHTML = `
-      <h3>确认和棋？</h3>
-      <div style="color:#8b93a7;font-size:13px;margin-bottom:18px">将结束当前对局。</div>
-      <div class="actions" style="margin-top:0">
-        <button class="btn primary" id="dYes">确认和棋</button>
-        <button class="btn" id="dNo">继续</button>
-      </div>`;
-    $('#modal').classList.add('active');
-    $('#dNo').onclick = () => $('#modal').classList.remove('active');
-    $('#dYes').onclick = () => {
-      $('#modal').classList.remove('active');
-      Game.running = false;
-      endGame({ over: true, result: 'draw', reason: '双方同意和棋' });
-    };
-  }
-};
-
-$('#btnResign').onclick = () => {
-  if (Game.replayMode) return toast('回放模式不支持此操作');
-  if (!Game.running) return;
-  const box = $('#modalBox');
-  box.innerHTML = `
-    <h3>确认认输？</h3>
-    <div style="color:#8b93a7;font-size:13px;margin-bottom:18px">认输后本局将立即结束。</div>
-    <div class="actions" style="margin-top:0">
-      <button class="btn" id="rYes" style="border-color:rgba(240,122,122,.5);color:#f0a0a0">确认认输</button>
-      <button class="btn" id="rNo">继续对局</button>
-    </div>`;
-  $('#modal').classList.add('active');
-  $('#rNo').onclick = () => $('#modal').classList.remove('active');
-  $('#rYes').onclick = () => {
-    $('#modal').classList.remove('active');
-    if (Game.mode === 'online' && Net.conn && Net.conn.open)
-      Net.conn.send({ type: 'resign' });
-    endGame({ over: true, result: other(Game.playerColor), reason: '认输' });
-  };
-};
-
-$('#btnMenu').onclick = () => {
-  if (Game.replayMode){
-    exitReplayMode();
-    showScreen('screen-menu');
-    return;
-  }
-  if (Game.running){
-    const box = $('#modalBox');
-    box.innerHTML = `
-      <h3>返回主菜单？</h3>
-      <div style="color:#8b93a7;font-size:13px;margin-bottom:18px">当前对局进度将丢失。</div>
-      <div class="actions" style="margin-top:0">
-        <button class="btn" id="bYes">返回</button>
-        <button class="btn" id="bNo">继续</button>
-      </div>`;
-    $('#modal').classList.add('active');
-    $('#bNo').onclick = () => $('#modal').classList.remove('active');
-    $('#bYes').onclick = () => {
-      $('#modal').classList.remove('active');
-      Game.running = false; cleanupNet(); showScreen('screen-menu');
-    };
-  } else { cleanupNet(); showScreen('screen-menu'); }
-};
-
-$('#rpFirst').onclick = () => { stopReplayPlay(); jumpToReplayStep(0); };
-$('#rpPrev').onclick = () => { stopReplayPlay(); jumpToReplayStep(Game.replayIndex - 1); };
-$('#rpPlay').onclick = () => { toggleReplayPlay(); };
-$('#rpNext').onclick = () => { stopReplayPlay(); jumpToReplayStep(Game.replayIndex + 1); };
-$('#rpLast').onclick = () => { stopReplayPlay(); jumpToReplayStep(Game.replayMoves.length); };
-
-function stopReplayPlay(){
-  if (Game.replayTimer){ clearInterval(Game.replayTimer); Game.replayTimer = null; }
-  $('#rpPlay').textContent = '▶';
-}
-
-$('#rpSpeed').onchange = e => {
-  Game.replaySpeed = +e.target.value;
-  if (Game.replayTimer){
-    clearInterval(Game.replayTimer);
-    Game.replayTimer = null;
-    toggleReplayPlay();
-  }
-};
-
-document.addEventListener('keydown', e => {
-  if (!Game.replayMode) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if (e.key === 'ArrowLeft'){ e.preventDefault(); stopReplayPlay(); jumpToReplayStep(Game.replayIndex - 1); }
-  else if (e.key === 'ArrowRight'){ e.preventDefault(); stopReplayPlay(); jumpToReplayStep(Game.replayIndex + 1); }
-  else if (e.key === ' '){ e.preventDefault(); toggleReplayPlay(); }
-  else if (e.key === 'Home'){ e.preventDefault(); stopReplayPlay(); jumpToReplayStep(0); }
-  else if (e.key === 'End'){ e.preventDefault(); stopReplayPlay(); jumpToReplayStep(Game.replayMoves.length); }
-});
-
-$('#modal').addEventListener('click', e => {
-  if (e.target === $('#modal')) $('#modal').classList.remove('active');
-});
-
-window.addEventListener('resize', () => {
-  if ($('#screen-game').classList.contains('active')) resizeBoard();
-});
-
-/* =========================================================================
-   14. 启动
-   ========================================================================= */
-(function boot(){
-  initBackground();
-  setTimeout(() => {
-    if (sfState === 'idle'){
-      const engine = SF_ENGINES.find(e => e.id === selectedEngineId);
-      if (engine) loadEngine(engine);
-    }
-  }, 800);
-  resizeBoard();
-})();
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&replayTimer)stopReplay()});
 </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"7939e04a4baf43c8b86a560f74aac60e","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
